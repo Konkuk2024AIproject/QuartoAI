@@ -33,17 +33,19 @@ class P1():
             pos = self.evaluate_position(selected_piece)
             row = pos // 4
             col = pos % 4
-            value = [0]
             if(pos != 16) :
-                for r in range(1,3):
-                    for c in range(1,3):
-                        if(self.eval_board[r][c]>max(value)):
-                            value.append(self.eval_board[r][c])
-                        if(self.eval_board[row][col] != 0 and self.eval_board[row][col] <= max(value)):
-                            return (r,c) # 중앙에 빈자리가 있으면 먼저 선점
+                    # for r in range(1,3):
+                    #     for c in range(1,3):
+                    #         if(self.eval_board[r][c]==value):
+                    #             row = r
+                    #             col = c
+                    #             break
+                            # if(self.eval_board[row][col] != 0 and self.eval_board[row][col] <= max(value)):
+                            #     return (r,c) # 중앙에 빈자리가 있으면 먼저 선점
                 return (row, col)
             else :
                 return random.choice(available_locs)
+            
 
         else: # 내가 첫수라면 무조건 1,1에 둔다
             return (1,1)
@@ -65,7 +67,7 @@ class P1():
                 sym.append(u_val[0])
                 quantity.append(count[0])
             
-        return(sym, max(quantity)) # 겹치느게 없으면 quantity는 0이다
+        return(sym, max(quantity)) # 겹치는게 없으면 quantity는 0이다
 
 
     #멤버변수 리셋하는 함수
