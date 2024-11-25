@@ -22,18 +22,20 @@ class AI:
 
         self.mcts()
         parent_visit = self.visits[self.to_state(self.board, -1)]
-        print(self.board)
+        # print(self.board)
 
         best_score = -inf
         best_piece = None
         for piece in self.available_pieces:
             pidx = self.to_piece_index(piece)
-            print(self.to_state(self.board, pidx))
-            if inf > (score := self.get_score(self.to_state(self.board, pidx), parent_visit)) > best_score:
+            state = self.to_state(self.board, pidx)
+            # print(state)
+            if (score := self.visits[state]) > best_score:
                 best_score = score
                 best_piece = piece
-            print(piece, score)
-        print('best = ', best_piece)
+        #     print(piece, score, (self.visits[state], self.wins[state]))
+        # print('best = ', best_piece)
+        # print()
         return best_piece
 
     def place_piece(self, selected_piece):
@@ -48,14 +50,15 @@ class AI:
             for col in range(4):
                 if self.board[row][col] == -1:
                     self.board[row][col] = pidx
-                    if inf > (score := self.get_score(self.to_state(self.board, -1), parent_visit)) > best_score:
+                    state = self.to_state(self.board, -1)
+                    if (score := self.visits[state]) > best_score:
                         best_score = score
                         best_move = (row, col)
                     self.board[row][col] = -1
         return best_move
 
     def mcts(self, selected_piece: None | tuple[int, int, int, int] = None, iterations=10000):
-        for _ in range(iterations):
+        for idx in range(iterations):
             self.simulate(selected_piece)
 
     @staticmethod
@@ -67,9 +70,9 @@ class AI:
         return sum(1 << (3 - i) for i, x in enumerate(piece) if x)
 
     def get_score(self, state, parent_visit):
-        if self.visits[state] == 0:
-            return inf
-        return self.wins[state] / self.visits[state] + 1.41 * (2 * np.log(parent_visit + 1) / self.visits[state]) ** .5
+        decay_factor = 1 / (1 + self.visits[state])  # Adjust exploration based on visits
+        return self.wins[state] / (self.visits[state] + 1) + \
+               14.1 * decay_factor * (2 * np.log(parent_visit + 1) / (self.visits[state] + 1)) ** 0.5
 
     def simulate(self, selected_piece):
         board = self.board.copy()
@@ -94,13 +97,13 @@ class AI:
                 best_move = None
                 for row in range(4):
                     for col in range(4):
-                        if board[row, col] == -1:
-                            board[row, col] = piece
-                            score = self.get_score(self.to_state(board, -1), parent_visit)
+                        if board[row][col] == -1:
+                            board[row][col] = piece
+                            score = self.get_score(s := self.to_state(board, -1), parent_visit)
                             if score > best_score:
                                 best_score = score
                                 best_move = (row, col)
-                            board[row, col] = -1
+                            board[row][col] = -1
                 board[best_move] = piece
                 history.append(self.to_state(board, -1))
                 selected_piece = None
@@ -112,7 +115,7 @@ class AI:
                 best_move = None
                 for piece in available_pieces:
                     pidx = self.to_piece_index(piece)
-                    score = self.get_score(self.to_state(board, pidx), parent_visit)
+                    score = self.get_score(s := self.to_state(board, pidx), parent_visit)
                     if score > best_score:
                         best_score = score
                         best_move = piece
@@ -139,6 +142,7 @@ class AI:
         result = self.get_result(board)
         end_turn = 16 - len(available_pieces)
         score = .5 if result == 0 else (1 if end_turn % 2 == self.is_first else 0)
+
         # print('score =', score)
         for state in history:
             # print(state)
