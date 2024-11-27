@@ -11,7 +11,7 @@ class AI:
         self.available_pieces = available_pieces  # Tuple of available pieces (e.g., (1, 0, 1, 0))
         self.is_first = is_first  # True if the AI is player 1, False if player 2
 
-        self.turn = 16 - len(available_pieces)  # Current turn number
+        self.turn = 17 - len(available_pieces)  # Current turn number
 
         self.visits = defaultdict(int)  # Number of visits for each state-action pair
         self.wins = defaultdict(int)  # Number of wins for each state-action pair
@@ -22,14 +22,20 @@ class AI:
 
         self.mcts()
         parent_visit = self.visits[self.to_state(self.board, -1)]
+        # print(self.board)
 
         best_score = -inf
         best_piece = None
         for piece in self.available_pieces:
             pidx = self.to_piece_index(piece)
-            if (score := self.get_score(self.to_state(self.board, pidx), parent_visit)) > best_score:
+            state = self.to_state(self.board, pidx)
+            # print(state)
+            if (score := self.visits[state]) > best_score:
                 best_score = score
                 best_piece = piece
+        #     print(piece, score, (self.visits[state], self.wins[state]))
+        # print('best = ', best_piece)
+        # print()
         return best_piece
 
     def place_piece(self, selected_piece):
@@ -44,33 +50,41 @@ class AI:
             for col in range(4):
                 if self.board[row][col] == -1:
                     self.board[row][col] = pidx
-                    if (score := self.get_score(self.to_state(self.board, None), parent_visit)) > best_score:
+                    state = self.to_state(self.board, -1)
+                    if (score := self.visits[state]) > best_score:
                         best_score = score
                         best_move = (row, col)
+                    self.board[row][col] = -1
         return best_move
 
     def mcts(self, selected_piece: None | tuple[int, int, int, int] = None, iterations=10000):
-        for _ in range(iterations):
+        for idx in range(iterations):
             self.simulate(selected_piece)
 
     @staticmethod
     def to_state(board, selected_piece):
-        return tuple((*board.ravel(), selected_piece))
+        return tuple((*board.ravel().tolist(), selected_piece))
 
     @staticmethod
     def to_piece_index(piece):
         return sum(1 << (3 - i) for i, x in enumerate(piece) if x)
 
     def get_score(self, state, parent_visit):
-        if self.visits[state] == 0:
-            return inf
-        return self.wins[state] / self.visits[state] + 1.41 * (2 * np.log(parent_visit) / self.visits[state]) ** .5
+        decay_factor = 1 / (1 + self.visits[state])  # Adjust exploration based on visits
+        return self.wins[state] / (self.visits[state] + 1) + \
+               14.1 * decay_factor * (2 * np.log(parent_visit + 1) / (self.visits[state] + 1)) ** 0.5
 
     def simulate(self, selected_piece):
         board = self.board.copy()
         available_pieces = list(self.available_pieces)
+        if selected_piece:
+            available_pieces.remove(selected_piece)
         history = []
         parent_visit = 0
+
+        history.append(
+            self.to_state(board, self.to_piece_index(selected_piece) if selected_piece else -1)
+        )
 
         # break when not visited state
         while not self.is_terminal(board):
@@ -83,15 +97,16 @@ class AI:
                 best_move = None
                 for row in range(4):
                     for col in range(4):
-                        if board[row, col] == -1:
-                            board[row, col] = piece
-                            score = self.get_score(self.to_state(board, -1), parent_visit)
+                        if board[row][col] == -1:
+                            board[row][col] = piece
+                            score = self.get_score(s := self.to_state(board, -1), parent_visit)
                             if score > best_score:
                                 best_score = score
                                 best_move = (row, col)
-                            board[row, col] = -1
+                            board[row][col] = -1
                 board[best_move] = piece
                 history.append(self.to_state(board, -1))
+                selected_piece = None
             else:
                 state = self.to_state(board, -1)
                 if state not in self.visits:
@@ -100,37 +115,37 @@ class AI:
                 best_move = None
                 for piece in available_pieces:
                     pidx = self.to_piece_index(piece)
-                    score = self.get_score(self.to_state(board, pidx), parent_visit)
+                    score = self.get_score(s := self.to_state(board, pidx), parent_visit)
                     if score > best_score:
                         best_score = score
                         best_move = piece
                 piece = best_move
                 available_pieces.remove(piece)
                 selected_piece = piece
-                history.append(self.to_state(board, piece))
+                history.append(self.to_state(board, self.to_piece_index(piece)))
             parent_visit = self.visits[state]
 
         # random simulation
         while not self.is_terminal(board):
             if selected_piece:
                 pidx = self.to_piece_index(selected_piece)
-                empty_positions = list(zip(*np.where(board == -1)))
+                empty_positions = [(i, j) for i in range(4) for j in range(4) if board[i, j] == -1]
                 row, col = random.choice(empty_positions)
-                board[row, col] = pidx
+                board[row][col] = pidx
                 history.append(self.to_state(board, -1))
+                selected_piece = None
             else:
-                piece = random.choice(available_pieces)
-                pidx = self.to_piece_index(piece)
-                available_pieces.remove(piece)
-                empty_positions = list(zip(*np.where(board == -1)))
-                row, col = random.choice(empty_positions)
-                board[row, col] = pidx
-                history.append(self.to_state(board, pidx))
+                selected_piece = random.choice(available_pieces)
+                available_pieces.remove(selected_piece)
+                history.append(self.to_state(board, self.to_piece_index(selected_piece)))
 
         result = self.get_result(board)
         end_turn = 16 - len(available_pieces)
         score = .5 if result == 0 else (1 if end_turn % 2 == self.is_first else 0)
+
+        # print('score =', score)
         for state in history:
+            # print(state)
             self.visits[state] += 1
             self.wins[state] += score
 

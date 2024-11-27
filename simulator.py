@@ -9,7 +9,7 @@ from seojin_machine import P2
 import time
 
 TF = (0, 1)
-ITERATIONS = 100
+ITERATIONS = 1
 result = [0, 0, 0]  # [Player 1 win, Player 2 win, Draw]
 
 def check_group(group):
@@ -41,8 +41,8 @@ def simulate_game(_):
     for turn in range(16):
         p1, p2 = players[turn % 2](board, available_pieces), players[(turn + 1) % 2](board, available_pieces)
         selected_piece = p2.select_piece()
-        available_pieces.remove(selected_piece)
         r, c = p1.place_piece(selected_piece)
+        available_pieces.remove(selected_piece)
         board[r][c] = pieces.index(selected_piece) + 1
         if check_win(board):
             return turn % 2
