@@ -9,7 +9,7 @@ class P1():
         self.board = copy.deepcopy(board) # Include piece indices. 0:empty / 1~16:piece
         self.available_pieces = available_pieces # Currently available pieces in a tuple type (e.g. (1, 0, 1, 0))
         self.eval_board = np.zeros((4, 4), dtype=int)
-        self.eval_piece = np.zeros(len(available_pieces))
+        self.eval_piece = np.zeros(len(self.pieces))
     
     def select_piece(self):
         # eval_piece에서 가장 높은 곳 return
@@ -38,16 +38,16 @@ class P1():
         # 16을 return하면 가능한 위치 중 random 위치에 둔다 (이건 필요 없을것 같기도)
         if(self.board.max()):
             pos = self.evaluate_position(selected_piece)
-            row = pos // 4
-            col = pos % 4
-            if(pos == -1):
-                pos = np.argmax(self.eval_board)
-                row = pos // 4
-                col = pos % 4
-                return (row, col)
-            elif(pos != 16) :
-                print(self.eval_board)
-                return (row, col)
+            if(pos != 16) :
+                while(1):
+                    row = pos // 4
+                    col = pos % 4
+                    if((row,col) in available_locs):
+                        return (row, col)
+                    else:
+                        self.eval_board[row][col] -= 500
+                        pos = np.argmax(self.eval_board)
+                    
             else :
                 print(self.eval_board)
                 return random.choice(available_locs)
@@ -63,15 +63,19 @@ class P1():
         line = [grid for grid in line if grid != 0]
         characteristics = np.array([self.pieces[idx - 1] for idx in line])
         sym, quantity = [],[]
-        for char in characteristics.T:
-            u_val, count = np.unique(char, return_counts=True)
-            if(len(u_val) == 2):
+        if(len(characteristics) == 0):
+            for i in range(4):
                 sym.append(-1)
-                quantity.append(-1)
-            else: 
-                sym.append(u_val[0])
-                quantity.append(count[0])
-            
+                quantity.append(0)
+        else :
+            for char in characteristics.T:
+                u_val, count = np.unique(char, return_counts=True)
+                if(len(u_val) == 2):
+                    sym.append(-1)
+                    quantity.append(-1)
+                else: #빈리스트가 아닐 경우 
+                    sym.append(u_val[0])
+                    quantity.append(count[0])
         return sym, quantity # 겹치는게 없으면 그 속성에 대한 quantity 내 원소는 0이다
 
 
@@ -241,33 +245,33 @@ class P1():
         # 상대 차례에 val이 2인곳을 여러군데 만들게 해야함
         if(1 in max_vals): # max_vals에 1인 곳이 존재하면(게임 초반)
             #그곳에 맞는 특성에 1 더함
-            for row in self.row_sym:
+            for sindex, row in enumerate(self.row_sym):
                 for idx, sym in enumerate(row):
-                    if(sym != -1 and self.row_eval[idx] == 1):
+                    if(sym != -1 and self.row_eval[sindex][idx] == 1):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
                         result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
                         # val이 1인곳을 2로 만드는 piece는 상대에게 줬을 때 board에 2인 val들이 많아지게 한다
                         self.eval_piece += np.array(result_array)
-            for col in self.col_sym:
+            for sindex, col in enumerate(self.col_sym):
                 for idx, sym in enumerate(col):
-                    if(sym != -1 and self.col_eval[idx] == 1):
+                    if(sym != -1 and self.col_eval[sindex][idx] == 1):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
                         result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
                         # val이 1인곳을 2로 만드는 piece는 상대에게 줬을 때 board에 2인 val들이 많아지게 한다
                         self.eval_piece += np.array(result_array)
-            for cross in self.cross_sym:
+            for sindex, cross in enumerate(self.cross_sym):
                 for idx, sym in enumerate(cross):
-                    if(sym != -1 and self.cross_eval[idx] == 1):
+                    if(sym != -1 and self.cross_eval[sindex][idx] == 1):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
                         result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
                         # val이 1인곳을 2로 만드는 piece는 상대에게 줬을 때 board에 2인 val들이 많아지게 한다
                         self.eval_piece += np.array(result_array)
-            for subgrid in self.subgrid_sym:
+            for sindex, subgrid in enumerate(self.subgrid_sym):
                 for idx, sym in enumerate(subgrid):
-                    if(sym != -1 and self.subgrid_eval[idx] == 1):
+                    if(sym != -1 and self.subgrid_eval[sindex][idx] == 1):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
                         result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
@@ -291,8 +295,7 @@ class P1():
             for sg_c in range(3):
                 subgrid = [self.board[sg_r][sg_c], self.board[sg_r][sg_c+1], self.board[sg_r+1][sg_c], self.board[sg_r+1][sg_c+1]]
                 _, count = self.check_possibility(subgrid)
-                pos_list.append(count)
-
+                pos_list.append(max(count))
         return max(pos_list)
     
 
