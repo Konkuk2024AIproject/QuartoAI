@@ -16,12 +16,15 @@ class P1():
         if(self.board.max()):
             self.evaluate_piece()
             while(1):
+                print("eval_piece", self.eval_piece)
                 best_piece = self.pieces[self.eval_piece.argmax()]
+                print("best_piece", best_piece)
+
                 if(best_piece in self.available_pieces): # best_piece가 available한 경우
-                    print(self.eval_board)
-                    return best_piece 
+                    return best_piece
                 else: # best_piece가 available하지 않은 경우 그 piece를 eval_piece의 최솟값으로 변경
-                    self.eval_piece[self.eval_piece.argmax()] = self.eval_piece.argmin()
+                    self.eval_piece[self.eval_piece.argmax()] -= 500
+                    print("eval_board print", self.eval_piece[self.eval_piece.argmax()])
             
         # 첫 선택이면 그냥 무조건 ENFJ를 준다
         else:
@@ -157,7 +160,7 @@ class P1():
                     if(sym != -1 and self.row_eval[sindex][idx] == 3):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([16 if piece in valid_piece_set else 0 for piece in self.pieces])
+                        result_array = np.array([36 if piece in valid_piece_set else 0 for piece in self.pieces])
                         self.eval_piece -= np.array(result_array)
         
         if(3 in np.ravel(np.array(self.col_eval))):
@@ -167,7 +170,7 @@ class P1():
                     if(sym != -1 and self.col_eval[sindex][idx] == 3):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([16 if piece in valid_piece_set else 0 for piece in self.pieces])
+                        result_array = np.array([36 if piece in valid_piece_set else 0 for piece in self.pieces])
                         self.eval_piece -= np.array(result_array)
         
         if(3 in np.ravel(np.array(self.cross_eval))):
@@ -177,7 +180,7 @@ class P1():
                     if(sym != -1 and self.cross_eval[sindex][idx] == 3):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([16 if piece in valid_piece_set else 0 for piece in self.pieces])
+                        result_array = np.array([36 if piece in valid_piece_set else 0 for piece in self.pieces])
                         self.eval_piece -= np.array(result_array)
 
         if(3 in np.ravel(np.array(self.subgrid_eval))):
@@ -187,7 +190,7 @@ class P1():
                     if(sym != -1 and self.subgrid_eval[sindex][idx] == 3):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([16 if piece in valid_piece_set else 0 for piece in self.pieces])
+                        result_array = np.array([36 if piece in valid_piece_set else 0 for piece in self.pieces])
                         self.eval_piece -= np.array(result_array)
         
         if(2 in np.ravel(np.array(self.row_eval))):
@@ -250,7 +253,7 @@ class P1():
                     if(sym != -1 and self.row_eval[sindex][idx] == 1):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
+                        result_array = np.array([2 if piece in valid_piece_set else 0 for piece in self.pieces])
                         # val이 1인곳을 2로 만드는 piece는 상대에게 줬을 때 board에 2인 val들이 많아지게 한다
                         self.eval_piece += np.array(result_array)
             for sindex, col in enumerate(self.col_sym):
@@ -258,7 +261,7 @@ class P1():
                     if(sym != -1 and self.col_eval[sindex][idx] == 1):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
+                        result_array = np.array([2 if piece in valid_piece_set else 0 for piece in self.pieces])
                         # val이 1인곳을 2로 만드는 piece는 상대에게 줬을 때 board에 2인 val들이 많아지게 한다
                         self.eval_piece += np.array(result_array)
             for sindex, cross in enumerate(self.cross_sym):
@@ -266,7 +269,7 @@ class P1():
                     if(sym != -1 and self.cross_eval[sindex][idx] == 1):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
+                        result_array = np.array([2 if piece in valid_piece_set else 0 for piece in self.pieces])
                         # val이 1인곳을 2로 만드는 piece는 상대에게 줬을 때 board에 2인 val들이 많아지게 한다
                         self.eval_piece += np.array(result_array)
             for sindex, subgrid in enumerate(self.subgrid_sym):
@@ -274,7 +277,7 @@ class P1():
                     if(sym != -1 and self.subgrid_eval[sindex][idx] == 1):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
+                        result_array = np.array([2 if piece in valid_piece_set else 0 for piece in self.pieces])
                         # val이 1인곳을 2로 만드는 piece는 상대에게 줬을 때 board에 2인 val들이 많아지게 한다
                         self.eval_piece += np.array(result_array)
 
