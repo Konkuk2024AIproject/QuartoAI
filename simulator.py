@@ -2,7 +2,7 @@ import numpy as np
 from multiprocessing import Pool, cpu_count
 
 # from machines_p1 import P1
-from jaejin_p1 import P1
+from machines_yeonwook import P1
 from seojin_machine import P2
 # from machines_p2 import P2
 # from yubin_p2 import P2

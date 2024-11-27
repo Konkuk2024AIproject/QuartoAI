@@ -18,6 +18,7 @@ class P1():
             while(1):
                 best_piece = self.pieces[self.eval_piece.argmax()]
                 if(best_piece in self.available_pieces): # best_piece가 available한 경우
+                    print(self.eval_board)
                     return best_piece 
                 else: # best_piece가 available하지 않은 경우 그 piece를 eval_piece의 최솟값으로 변경
                     self.eval_piece[self.eval_piece.argmax()] = self.eval_piece.argmin()
@@ -31,21 +32,31 @@ class P1():
         # selected_piece: The selected piece that you have to place on the board (e.g. (1, 0, 1, 0)).
         available_locs = [(row, col) for row, col in product(range(4), range(4)) if self.board[row][col]==0]
         # Available locations to place the piece
-        # 첫 수가 아닌 경우
+        # 첫 수가 아닌 경우 evaluate_position 값에 따라
+        # -1을 return하면 eval_board 확인해서 가장 큰 곳에 둔다
+        # 0~15의 값을 return하면 해당 index에 둔다
+        # 16을 return하면 가능한 위치 중 random 위치에 둔다 (이건 필요 없을것 같기도)
         if(self.board.max()):
             pos = self.evaluate_position(selected_piece)
             row = pos // 4
             col = pos % 4
-            if(pos != 16) :
+            if(pos == -1):
+                pos = np.argmax(self.eval_board)
+                row = pos // 4
+                col = pos % 4
+                return (row, col)
+            elif(pos != 16) :
+                print(self.eval_board)
                 return (row, col)
             else :
+                print(self.eval_board)
                 return random.choice(available_locs)
             
         else: # 내가 첫수라면 무조건 1,1에 둔다
             return (1,1)
 
 
-    # 완성도 체크 함수 : (-1,0,-1,-1),max값 이렇게 return하는게 좋을 듯
+    # 완성도 체크 함수 : (-1,0,-1,-1),(-1,2,-1,-1) 이렇게 return하는게 좋을 듯
     # -1은 안겹쳐서 신경 안써도 되는거, 앞 튜플은 겹치는 mbti(0,1) 인코딩한거, 뒤에 있는 튜플은 그 mbti가 나온 횟수
     # mbti가 나온 횟수는 -1(신경안써도 되는거)나 다 같은 숫자이다.
     def check_possibility(self, line):
@@ -82,28 +93,48 @@ class P1():
         
         for col in range(4):
             sym, quantity = self.check_possibility([self.board[row][col] for row in range(4)])
-            self.col_sym.append(sym)
-            self.col_eval.append(quantity) # 각 col의 특성개수를 센 길이 4의 리스트가 col개수만큼 들어있다
+            if(len(sym)!= 0 and len(quantity) != 0 ):
+                self.col_sym.append(sym)
+                self.col_eval.append(quantity) # 각 col의 특성개수를 센 길이 4의 리스트가 col개수만큼 들어있다
+            else:
+                self.col_sym.append([-1,-1,-1,-1])
+                self.col_eval.append([0,0,0,0])
     
         for row in range(4):
             sym, quantity = self.check_possibility([self.board[row][col] for col in range(4)])
-            self.row_sym.append(sym)
-            self.row_eval.append(quantity)
+            if(len(sym)!= 0 and len(quantity) != 0 ):
+                self.row_sym.append(sym)
+                self.row_eval.append(quantity)
+            else:
+                self.row_sym.append([-1,-1,-1,-1])
+                self.row_eval.append([0,0,0,0])
 
         sym, quantity = self.check_possibility([self.board[i][i] for i in range(4)])
-        self.cross_sym.append(sym)
-        self.cross_eval.append(quantity)
+        if(len(sym)!= 0 and len(quantity) != 0 ):
+            self.cross_sym.append(sym)
+            self.cross_eval.append(quantity)
+        else:
+            self.cross_sym.append([-1,-1,-1,-1])
+            self.cross_eval.append([0,0,0,0])
         sym, quantity = self.check_possibility([self.board[i][3 - i] for i in range(4)])
-        self.cross_sym.append(sym)
-        self.cross_eval.append(quantity)
+        if(len(sym)!= 0 and len(quantity) != 0 ):
+            self.cross_sym.append(sym)
+            self.cross_eval.append(quantity)
+        else:
+            self.cross_sym.append([-1,-1,-1,-1])
+            self.cross_eval.append([0,0,0,0])
 
         # Check 2x2 sub-grids
         for r in range(3):
             for c in range(3):
                 subgrid = [self.board[r][c], self.board[r][c+1], self.board[r+1][c], self.board[r+1][c+1]]
                 sym, quantity = self.check_possibility(subgrid)
-                self.subgrid_sym.append(sym)
-                self.subgrid_eval.append(quantity)
+                if(len(sym)!= 0 and len(quantity) != 0 ):
+                    self.subgrid_sym.append(sym)
+                    self.subgrid_eval.append(quantity)
+                else:
+                    self.subgrid_sym.append([-1,-1,-1,-1])
+                    self.subgrid_eval.append([0,0,0,0])
         
         # 이걸 실행하면 이제 각 멤버변수에 각 승리가능 필드에서
         # 눈여겨 봐야할 특성,갯수가 들어간다
@@ -111,54 +142,56 @@ class P1():
     
     def evaluate_piece(self):
         self.check_possibilities()  # 필드 평가를 통해 가능한 승리 조건 분석
-        max_vals = [max(self.row_eval), max(self.col_eval), max(self.cross_eval), max(self.subgrid_eval)]
+        max_vals = [max([max(reval) for reval in self.row_eval]), max([max(ceval) for ceval in self.col_eval]), max([max(creval) for creval in self.cross_eval]), max([max(seval) for seval in self.subgrid_eval])]
 
-        if(3 in self.row_eval):
+        # 추가로, 남은 말 중에 내가 이길 수 있도록 해주는 특성을 가지고 있지 않은 말을 먼저 선택하는게 좋다(아직 구현 안함)
+
+        if(3 in np.ravel(np.array(self.row_eval))):
             # 내가 고를 때 같은게 3개 중첩되어있는게 있으면 그 attribute는 piece선택에서 최대한 배제해야함
-            for row in self.row_sym:
+            for sindex, row in enumerate(self.row_sym):
                 for idx, sym in enumerate(row) :
-                    if(sym != -1 and self.row_eval[idx] == 3):
+                    if(sym != -1 and self.row_eval[sindex][idx] == 3):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
                         result_array = np.array([16 if piece in valid_piece_set else 0 for piece in self.pieces])
                         self.eval_piece -= np.array(result_array)
         
-        if(3 in self.col_eval):
+        if(3 in np.ravel(np.array(self.col_eval))):
             # 내가 고를 때 같은게 3개 중첩되어있는게 있으면 그 attribute는 piece선택에서 최대한 배제해야함
-            for col in self.col_sym:
+            for sindex, col in enumerate(self.col_sym):
                 for idx, sym in enumerate(col) :
-                    if(sym != -1 and self.col_eval[idx] == 3):
+                    if(sym != -1 and self.col_eval[sindex][idx] == 3):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
                         result_array = np.array([16 if piece in valid_piece_set else 0 for piece in self.pieces])
                         self.eval_piece -= np.array(result_array)
         
-        if(3 in self.cross_eval):
+        if(3 in np.ravel(np.array(self.cross_eval))):
             # 내가 고를 때 같은게 3개 중첩되어있는게 있으면 그 attribute는 piece선택에서 최대한 배제해야함
-            for cross in self.cross_sym:
+            for sindex, cross in enumerate(self.cross_sym):
                 for idx, sym in enumerate(cross) :
-                    if(sym != -1 and self.cross_eval[idx] == 3):
+                    if(sym != -1 and self.cross_eval[sindex][idx] == 3):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
                         result_array = np.array([16 if piece in valid_piece_set else 0 for piece in self.pieces])
                         self.eval_piece -= np.array(result_array)
 
-        if(3 in self.subgrid_eval):
+        if(3 in np.ravel(np.array(self.subgrid_eval))):
             # 내가 고를 때 같은게 3개 중첩되어있는게 있으면 그 attribute는 piece선택에서 최대한 배제해야함
-            for subgrid in self.subgrid_sym:
+            for sindex, subgrid in enumerate(self.subgrid_sym):
                 for idx, sym in enumerate(subgrid):
-                    if(sym != -1 and self.subgrid_eval[idx] == 3):
+                    if(sym != -1 and self.subgrid_eval[sindex][idx] == 3):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
                         result_array = np.array([16 if piece in valid_piece_set else 0 for piece in self.pieces])
                         self.eval_piece -= np.array(result_array)
         
-        if(2 in self.row_eval):
+        if(2 in np.ravel(np.array(self.row_eval))):
             # 내가 고를 때 같은게 2개 중첩되어 있는게 있으면 그 attribute가 포함된 piece를 선택하는게 유리함
             # 상대가 둬서 3을 만들면 좋으니까
-            for row in self.row_sym:
+            for sindex, row in enumerate(self.row_sym):
                 for idx, sym in enumerate(row) :
-                    if(sym != -1 and self.row_eval[idx] == 2):
+                    if(sym != -1 and self.row_eval[sindex][idx] == 2):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
                         result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
@@ -166,12 +199,12 @@ class P1():
                         weight = np.sum(result_array)
                         self.eval_piece += (weight*np.array(result_array))
 
-        if(2 in self.col_eval):
+        if(2 in np.ravel(np.array(self.col_eval))):
             # 내가 고를 때 같은게 2개 중첩되어 있는게 있으면 그 attribute가 포함된 piece를 선택하는게 유리함
             # 상대가 둬서 3을 만들면 좋으니까
-            for col in self.col_sym:
+            for sindex, col in enumerate(self.col_sym):
                 for idx, sym in enumerate(col) :
-                    if(sym != -1 and self.col_eval[idx] == 2):
+                    if(sym != -1 and self.col_eval[sindex][idx] == 2):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
                         result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
@@ -179,12 +212,12 @@ class P1():
                         weight = np.sum(result_array)
                         self.eval_piece += (weight*np.array(result_array))
 
-        if(2 in self.cross_eval):
+        if(2 in np.ravel(np.array(self.cross_eval))):
             # 내가 고를 때 같은게 2개 중첩되어 있는게 있으면 그 attribute가 포함된 piece를 선택하는게 유리함
             # 상대가 둬서 3을 만들면 좋으니까
-            for cross in self.cross_sym:
+            for sindex, cross in enumerate(self.cross_sym):
                 for idx, sym in enumerate(cross) :
-                    if(sym != -1 and self.cross_eval[idx] == 2):
+                    if(sym != -1 and self.cross_eval[sindex][idx] == 2):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
                         result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
@@ -192,12 +225,12 @@ class P1():
                         weight = np.sum(result_array)
                         self.eval_piece += (weight*np.array(result_array))
 
-        if(2 in self.subgrid_eval):
+        if(2 in np.ravel(np.array(self.subgrid_eval))):
             # 내가 고를 때 같은게 2개 중첩되어 있는게 있으면 그 attribute가 포함된 piece를 선택하는게 유리함
             # 상대가 둬서 3을 만들면 좋으니까
-            for subgrid in self.subgrid_sym:
+            for sindex, subgrid in enumerate(self.subgrid_sym):
                 for idx, sym in enumerate(subgrid) :
-                    if(sym != -1 and self.subgrid_eval[idx] == 2):
+                    if(sym != -1 and self.subgrid_eval[sindex][idx] == 2):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
                         result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
@@ -206,10 +239,10 @@ class P1():
                         self.eval_piece += (weight*np.array(result_array))
         
         # 상대 차례에 val이 2인곳을 여러군데 만들게 해야함
-        if(1 in max_vals): # val이 1인 곳이 존재하면
+        if(1 in max_vals): # max_vals에 1인 곳이 존재하면(게임 초반)
             #그곳에 맞는 특성에 1 더함
             for row in self.row_sym:
-                for idx, sym in enumerate(row) :
+                for idx, sym in enumerate(row):
                     if(sym != -1 and self.row_eval[idx] == 1):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
@@ -217,7 +250,7 @@ class P1():
                         # val이 1인곳을 2로 만드는 piece는 상대에게 줬을 때 board에 2인 val들이 많아지게 한다
                         self.eval_piece += np.array(result_array)
             for col in self.col_sym:
-                for idx, sym in enumerate(col) :
+                for idx, sym in enumerate(col):
                     if(sym != -1 and self.col_eval[idx] == 1):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
@@ -225,7 +258,7 @@ class P1():
                         # val이 1인곳을 2로 만드는 piece는 상대에게 줬을 때 board에 2인 val들이 많아지게 한다
                         self.eval_piece += np.array(result_array)
             for cross in self.cross_sym:
-                for idx, sym in enumerate(cross) :
+                for idx, sym in enumerate(cross):
                     if(sym != -1 and self.cross_eval[idx] == 1):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
@@ -233,7 +266,7 @@ class P1():
                         # val이 1인곳을 2로 만드는 piece는 상대에게 줬을 때 board에 2인 val들이 많아지게 한다
                         self.eval_piece += np.array(result_array)
             for subgrid in self.subgrid_sym:
-                for idx, sym in enumerate(subgrid) :
+                for idx, sym in enumerate(subgrid):
                     if(sym != -1 and self.subgrid_eval[idx] == 1):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
@@ -241,263 +274,194 @@ class P1():
                         # val이 1인곳을 2로 만드는 piece는 상대에게 줬을 때 board에 2인 val들이 많아지게 한다
                         self.eval_piece += np.array(result_array)
 
-        if(0 in max_vals):
-            pass
 
-    def update_eval_board(self, selected_piece):
-        self.check_possibilities()
-        available_locs = [(row, col) for row, col in product(range(4), range(4)) if self.board[row][col]==0]
-        max_row = max(self.row_eval) # 0,1,2,3 : 각 row에서 가장 많은 특성의 개수 중 가장 큰 값
-        max_col = max(self.col_eval) # 0,1,2,3
-        max_cross = max(self.cross_eval)
-        max_subgrid = max(self.subgrid_eval)
-        max_vals = [max_row, max_col, max_cross, max_subgrid]
-        row_most_pos =  np.where(np.array(self.row_eval) == max_row)[0].tolist() # [1,3] 이런 최댓값의 인덱스
-        col_most_pos =  np.where(np.array(self.col_eval) == max_col)[0].tolist()
-        cross_most_pos = np.where(np.array(self.cross_eval) == max_cross)[0].tolist()
-        subgrid_most_pos = np.where(np.array(self.subgrid_eval) == max_subgrid)[0].tolist()
+    def calculate_evaluation_value(self, r, c, selected_piece):
+        pos_list = []
+        self.board[r][c] = self.pieces.index(selected_piece) + 1
+        _, count = self.check_possibility([self.board[r][col] for col in range(4)])
+        pos_list.append(max(count))
+        _, count = self.check_possibility([self.board[row][c] for row in range(4)])
+        pos_list.append(max(count))
+        _, count = self.check_possibility([self.board[i][i] for i in range(4)])
+        pos_list.append(max(count))
+        _, count = self.check_possibility([self.board[i][3-i] for i in range(4)])
+        pos_list.append(max(count))
 
-        if(max(self.row_eval) == 2):
-            for row_pos in row_most_pos:
-                same_attributes = np.array(selected_piece) == np.array(self.row_sym[row_pos]) # [True, False True, False] 이런식으로 나올거임
-                available_loc_in_line = []
-                for i in range(4):
-                    if((row_pos,i) in available_locs):
-                        available_loc_in_line.append((row_pos,i))
-                if len(np.where(np.array(self.row_sym[row_pos])[same_attributes], True)) != 0:
-                    for loc in available_loc_in_line:
-                        row, col = loc
-                        self.eval_board[row][col] -= 2
-                else: 
-                    self.eval_board[row][col] += 1
+        for sg_r in range(3):
+            for sg_c in range(3):
+                subgrid = [self.board[sg_r][sg_c], self.board[sg_r][sg_c+1], self.board[sg_r+1][sg_c], self.board[sg_r+1][sg_c+1]]
+                _, count = self.check_possibility(subgrid)
+                pos_list.append(count)
 
+        return max(pos_list)
+    
 
-        if(max_col == 2):
-            for col_pos in col_most_pos:
-                same_attributes = np.array(selected_piece) == np.array(self.col_sym[col_pos])
-                available_loc_in_line = []
-                for i in range(4):
-                    if((i,col_pos) in available_locs):
-                        available_loc_in_line.append((i,col_pos))
-                if len(np.where(np.array(self.col_sym[col_pos])[same_attributes], True)) != 0:
-                    for loc in available_loc_in_line:
-                        row, col = loc
-                        self.eval_board[row][col] -= 2
-                else: 
-                    self.eval_board[row][col] += 1
+    # 지정된 값(1,2,3)이 위치한 row, col, cross, grid의 인덱스를 전부 파악
+    def check_position(self, win_conditions_eval, same_value):
+        max_positions = []
+        for cond_idx, win_condition in enumerate(win_conditions_eval):
+            max_positions.append([(cond_idx, linenum, symidx) for linenum, line in enumerate(win_condition) for symidx, val in enumerate(line) if val == same_value])
+        return max_positions
+        # (row인지 col인지 cross인지 grid인지, 몇번째인지, max attribute의 index)
+        # (0: row, 1: col, 2: cross, 3: grid)
+        # max_positions에는 각 승리조건의 최댓값을 가지고 있는 위치와, 심볼을 알 수 있다.
 
+    def update_eval_board_2(self, symidx, locs, selected_piece):
+        for (r,c) in locs:
+            self.board[r][c] = self.pieces.index(selected_piece) + 1
+            # 내가 받은걸 넣었을 때 val값이 바뀌는지 체크해봐야함
+            # 2였다가 3이 되면 남은 말 중에 4로 만들 수 있는게 있는지 확인
+            # 4로 만들 수 있는 말이 1개보다 많으면 r,c에 해당하는 eval_board 값 -5
+            recalculated_max_val = self.calculate_evaluation_value(r, c, selected_piece) # 3이 되는 부분이 있는지 확인
 
-        if(max_cross == 2):
-            for diag in range(2):  # diag = 0: 좌->우 대각선, diag = 1: 우->좌 대각선
-                diagonal = ([self.board[i][i] for i in range(4)] if diag == 0
-                            else [self.board[i][3 - i] for i in range(4)])
-                for i in range(4):
-                    if diagonal[i] == 0:  # 빈 칸을 찾음
-                        r, c = (i, i) if diag == 0 else (i, 3 - i)
-                        self.board[r][c] = self.pieces.index(selected_piece) + 1
-                        _, pos_before = self.check_possibility([self.board[d][d] if diag == 0 else self.board[d][3 - d] for d in range(4)])
-                        if pos_before == 3:
-                            # 4가 되지 않게 하는 말이 있는지 탐색
-                            for idx, piece in enumerate(self.available_pieces):
-                                self.board[r][c] = self.pieces.index(piece) + 1
-                                _, pos_after = self.check_possibility([self.board[d][d] if diag == 0 else self.board[d][3 - d] for d in range(4)])
-                                if pos_after == 4:
-                                    self.eval_board[r][c] -= 1
-                                else:
-                                    self.eval_board[r][c] += 1
-                                self.board[r][c] = 0
-                        self.board[r][c] = 0 
+            if recalculated_max_val == 3:
+                piece_make_4s = []
+                #남은 말 중에 4로 만드는게 남았는지 체크
+                for r_sym in self.row_sym:
+                    for piece in self.available_pieces:
+                        if(piece[symidx] == r_sym[symidx]):
+                            piece_make_4s.append(piece)
+                if(len(piece_make_4s) < 2): # 1개만 있으면 그걸 피하고 다른거만 주면 됨. 나쁘지 않은 수임
+                    self.eval_board[r][c] += len(piece_make_4s)
+                else: self.eval_board[r][c] -= (2*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
+            else: # 말을 뒀는데 val의 최댓값이 똑같이 2임(2를 많이 만들수록 좋음)
+                self.eval_board[r][c] += 2 #나쁘지 않은 수임
 
-            #서브그리드는 max인 곳에 추가하고 전체를 다 따져봐야한다
-        if(max_subgrid == 2):
-            for subgrid_pos in subgrid_most_pos:
-                r = subgrid_pos // 3
-                c = subgrid_pos % 3
-                subgrid = [self.board[r][c], self.board[r][c+1],
-                        self.board[r+1][c], self.board[r+1][c+1]]
-                subgrid_indices = [(r, c), (r, c+1), (r+1, c), (r+1, c+1)]
-                for idx, (r, c) in enumerate(subgrid_indices):
-                        if self.board[r][c] == 0:  # 빈 칸을 찾음
-                            self.board[r][c] = self.pieces.index(selected_piece) + 1
-                            # 해당 서브그리드가 승리 조건에 가까운지 평가
-                            _, pos_before = self.check_possibility([self.board[i][j] for i, j in subgrid_indices])
-                            if pos_before == 3:
-                                # 4가 되지 않게 하는 말 탐색
-                                for piece in self.available_pieces:
-                                    self.board[r][c] = self.pieces.index(piece) + 1
-                                    _, pos_after = self.check_possibility([self.board[i][j] for i, j in subgrid_indices])
-                                    if pos_after == 4:
-                                        self.eval_board[r][c] -= 1
-                                    else:
-                                        self.eval_board[r][c] += 1
-                                    self.board[r][c] = 0
-                            self.board[r][c] = 0
+            self.board[r][c] = 0 # 원상복구
 
+    def update_eval_board_1(self, locs, selected_piece):
+        for (r,c) in locs:
+            self.board[r][c] = self.pieces.index(selected_piece) + 1
+            # 내가 받은걸 넣었을 때 val값이 바뀌는지 체크해봐야함
+            # 2를 최대한 많이 만들도록 한다.
+            recalculated_max_val = self.calculate_evaluation_value(r, c, selected_piece) # 2가 되는 부분이 있는지 확인
 
+            if recalculated_max_val == 2:
+                self.eval_board[r][c] += 2
+            else: # 말을 뒀는데 val의 최댓값이 똑같이 1임
+                self.eval_board[r][c] += 1 #나쁘지 않은 수임
+
+            self.board[r][c] = 0 # 원상복구
 
     # 위험한 곳의 위치를 파악하고 내가 갖고 있는 piece가 어디 들어가면 좋은지 확인
     def evaluate_position(self, selected_piece):
         self.check_possibilities()
         available_locs = [(row, col) for row, col in product(range(4), range(4)) if self.board[row][col]==0]
-        max_row = max(self.row_eval) # 0,1,2,3
-        max_col = max(self.col_eval) # 0,1,2,3
-        max_cross = max(self.cross_eval) # 0, 1
-        max_subgrid = max(self.subgrid_eval) # 0~8까지
-        max_vals = [max_row, max_col, max_cross, max_subgrid]
-        row_most_pos =  np.where(np.array(self.row_eval) == max_row)[0].tolist()
-        col_most_pos =  np.where(np.array(self.col_eval) == max_col)[0].tolist()
-        # cross_most_pos = self.cross_eval.index(max_cross)
-        subgrid_most_pos = np.where(np.array(self.subgrid_eval) == max_subgrid)[0].tolist()
+        win_conditions_eval = [self.row_eval, self.col_eval, self.cross_eval, self.subgrid_eval]
+        win_conditions_sym = [self.row_sym, self.col_sym, self.cross_sym, self.subgrid_sym]
+
+        max_vals = []
         # **그냥 0이 아닌 부분에 뒀을 때 나한테 좋은지 안좋은지 eval_board에 업데이트
         # tree 형태가 아니라 eval_board를 이용해 전역적으로 값을 업데이트 해가며 최적의 값을 찾는다
 
-        # eval 값이 1이면 협력해도 됨, eval 값이 2이면 방해해야됨
         # 나에게 도움이 되는 칸은 +1, 도움이 안되는 칸은 -1한다
         # 마지막에 최댓값을 가지고 있는 칸을 return하면 됨
+        for win_condition in win_conditions_eval:
+            #row, col, cross, grid의 최댓값 찾기
+            max_vals.append(max(np.ravel(np.array(win_condition)))) #승리조건들의 각 요소의 최댓값 중 최댓값을 찾는다
+            #row, col, cross, grid의 최댓값이 순서대로 들어감
         
-        if(max(max_vals) == 3):
-            for loc in available_locs:
-                r, c = loc
-                pos_list = []
-                self.board[r][c] = self.pieces.index(selected_piece) + 1
-                _, count = self.check_possibility([self.board[r][col] for col in range(4)])
-                pos_list.append(count)
-                _, count = self.check_possibility([self.board[row][c] for row in range(4)])
-                pos_list.append(count)
-                _, count = self.check_possibility([self.board[i][i] for i in range(4)])
-                pos_list.append(count)
-                _, count = self.check_possibility([self.board[i][3-i] for i in range(4)])
-                pos_list.append(count)
+        for r in range(1,3):
+            for c in range(1,3):
+                self.eval_board[r][c] += 1
+        # eval_board의 중앙 부분에 가중치를 둬서 점수가 같은 곳이 있다면 가운데 부분에 우선적으로 두도록 한다
 
-                if(r<=2 and c <=2):
-                    subgrid = [self.board[r][c], self.board[r][c+1], self.board[r+1][c], self.board[r+1][c+1]]
-                    _, count = self.check_possibility(subgrid)
-                    pos_list.append(count)
+        # -1을 return하면 eval_board 확인해서 가장 큰 곳에 둔다
+        # 0~15의 값을 return하면 해당 index에 둔다
+        # 16을 return하면 가능한 위치 중 random 위치에 둔다 (이건 필요 없을것 같기도)
 
-                if max(pos_list) == 4:
-                    return (4*r + c)
-                else :
-                    return 16 # 이길 수 있는 경우가 없는거임
-            
-        # row,col또는 row,cross 또는 col,cross에서 모두 eval 변수가 2인 순간 거의 게임 끝남
+        # 내가 가지고 있는 말을 뒀을 때 이길 수 있는 곳이 있으면 바로 return
+        for loc in available_locs:
+            r, c = loc
+            recalculated_max_val = self.calculate_evaluation_value(r,c,selected_piece)
+
+            if recalculated_max_val == 4:
+                return (4*r + c)
+            else : # 3인 곳은 있지만 내가 거기 둬서 이길 수 있는 말을 안가지고 있는거임
+                break
+
+        # val이 3인 곳이 존재할 때 (eval_board 업데이트)
+        # -> 내가 val을 4로 만들 수 있는 조각이 있다면 val을 4로 하는 위치에 둔다
+        # -> val을 4로 만들 수 있는 위치가 없는 경우라 eval_board 업데이트
+        if(3 in [item for sublist in win_conditions_eval for item in sublist]):
+            max_positions = self.check_position(win_conditions_eval, 3) # 3인 곳을 찾아줌
+            for max_position in max_positions:
+                cond_idx, linenum, symidx = max_position
+                if(cond_idx == 0): # row
+                    locs = [(r,c) for (r,c) in available_locs if r==linenum]
+                    for (r,c) in locs:
+                        self.eval_board[r][c] = self.pieces.index(selected_piece) + 1
+                        # 내가 받은걸 넣어도 val값이 안바뀔거다(for문을 통과했으니까)
+                        # 해당부분에 말을 뒀을 때 다른 부분이 3이 되는지 확인한다
+                        # 3이 되는 부분이 있는경우 말중에 4로 만드는게 있다면 -16한다
+                        #
+
+
+                        # 2였다가 3이 되면 남은 말 중에 4로 만들 수 있는게 있는지 확인
+                        # 4로 만들 수 있는 말이 1개보다 많으면 r,c에 해당하는 eval_board 값 -3
+                        recalculated_max_val = self.calculate_evaluation_value(r, c, selected_piece)
+
+        
         # 이건 max값이 2인 경우니까 내가 두고 다음 차례에 4가 되지 않게 하는 말이 남았으면
         # 그 위치의 eval_board에 1을 더하고, 아니면 다음걸 평가한다.
-        # elif(max(max_vals) == 2):
-        # eval값들이 2이하인 경우 eval_board를 일단 업데이트 한 후
-        # eval값들이 2가 아닌 경우(아마 게임 초반) 겹치는 부분이
         # 가장 많은 위치를 return => place_piece에서 중앙부분에 더 좋은게 있는지 한번 찾는다
-        else: 
-            if(max_row == 2):
-                for row_pos in row_most_pos:
-                    for i in range(4):
-                        if(self.board[row_pos][i] == 0):
-                            self.board[row_pos][i] = self.pieces.index(selected_piece)
-                            _, pos_before = self.check_possibility([self.board[row_pos][col] for col in range(4)])
-                            if(pos_before == 3):
-                                # 4가 되지 않게 하는 말이 남아있어야됨
-                                # 여기부터 상대 수 예측
-                                for idx, piece in enumerate(self.available_pieces):
-                                    colval = np.argmin(self.board[row_pos])
-                                    self.board[row_pos][colval] = self.pieces.index(piece) + 1
-                                    _, pos_after = self.check_possibility([self.board[row_pos][col] for col in range(4)])
-                                    if (pos_after == 4): 
-                                        # 남아있는 수 중에 승리조건을 만족하게 하는게 있으면
-                                        # 내가 [row_most_pos][i]에 뒀을 때 진다.
-                                        self.eval_board[row_pos][i] -= 1
-                                    else: self.eval_board[row_pos][i] += 1
-                                    self.board[row_pos][colval] = 0
-                            self.board[row_pos][i] = 0
+        
+        # (row인지 col인지 cross인지 grid인지, 몇번째인지, max attribute의 index)
+        # (0: row, 1: col, 2: cross, 3: grid)
+        if(2 in [item for sublist in win_conditions_eval for item in sublist]):
+            max_positions = self.check_position(win_conditions_eval, 2) # 2인 곳을 찾아줌
+            
+            for max_position in max_positions:
+                cond_idx, linenum, symidx = max_position
+                if(cond_idx == 0): # row
+                    locs = [(r,c) for (r,c) in available_locs if (r==linenum and self.board[r][c] == 0)]
+                    self.update_eval_board_2(symidx, locs, selected_piece)
 
-            if(max_col == 2):
-                for col_pos in col_most_pos:
-                    for i in range(4):
-                        if(self.board[i][col_pos] == 0):
-                            self.board[i][col_pos] = self.pieces.index(selected_piece)
-                            _, pos_before = self.check_possibility([self.board[row][col_pos] for row in range(4)])
-                            if(pos_before == 3):
-                                # 4가 되지 않게 하는 말이 남아있어야됨
-                                for idx, piece in enumerate(self.available_pieces):
-                                    rowval = np.argmin(self.board.T[col_pos])
-                                    self.board[rowval][col_pos] = self.pieces.index(piece) + 1
-                                    _, pos_after = self.check_possibility([self.board[row][col_pos] for row in range(4)])
-                                    if (pos_after == 4):
-                                        self.eval_board[i][col_pos] -= 1
-                                    else: self.eval_board[i][col_pos] += 1
-                                    self.board[rowval][col_pos] = 0
-                            self.board[i][col_pos] = 0
+                elif(cond_idx == 1): # col
+                    locs = [(r,c) for (r,c) in available_locs if (c==linenum and self.board[r][c] == 0)]
+                    self.update_eval_board_2(symidx, locs, selected_piece)
+                
+                elif(cond_idx == 2): # cross
+                    locs = [(i,i) for i in range(4) if (i==linenum and self.board[r][c] == 0)]
+                    self.update_eval_board_2(symidx, locs, selected_piece)
+                    locs = [(i,3-i) for i in range(4) if (i==linenum and self.board[r][c] == 0)]
+                    self.update_eval_board_2(symidx, locs, selected_piece)
+                
+                else: # subgrids
+                    if(linenum == 0):
+                        locs = [(i,j) for i in range(2) for j in range(2) if(self.board[i][j] == 0)]
+                        self.update_eval_board_2(symidx, locs, selected_piece)
+                    elif(linenum == 3 or linenum == 6):
+                        sr = linenum//3
+                        sc = linenum%3
+                        locs = [(i,j) for i in range(sr,sr+2) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
+                        self.update_eval_board_2(symidx, locs, selected_piece)
+                        locs = [(i,j) for i in range(sr-1,sr+1) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
+                        self.update_eval_board_2(symidx, locs, selected_piece)
+                    elif(linenum == 1 or linenum == 2):
+                        sr = 0
+                        sc = linenum
+                        locs = [(i,j) for i in range(sr,sr+2) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
+                        self.update_eval_board_2(symidx, locs, selected_piece)
+                        locs = [(i,j) for i in range(sr,sr+2) for j in range(sc-1, sc+1) if(self.board[i][j] == 0)]
+                        self.update_eval_board_2(symidx, locs, selected_piece)
+                    else:
+                        sr = linenum//3
+                        sc = linenum%3
+                        locs = [(i,j) for i in range(sr-1,sr+1) for j in range(sc-1, sc+1) if(self.board[i][j] == 0)]
+                        self.update_eval_board_2(symidx, locs, selected_piece)
+                        locs = [(i,j) for i in range(sr-1,sr+1) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
+                        self.update_eval_board_2(symidx, locs, selected_piece)
+                        locs = [(i,j) for i in range(sc, sc+2) for j in range(sr-1,sr+1) if(self.board[i][j] == 0)]
+                        self.update_eval_board_2(symidx, locs, selected_piece)
+                        locs = [(i,j) for i in range(sc, sc+2) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
+                        self.update_eval_board_2(symidx, locs, selected_piece)
 
-
-            if(max_cross == 2):
-                for diag in range(2):  # diag = 0: 좌->우 대각선, diag = 1: 우->좌 대각선
-                    diagonal = ([self.board[i][i] for i in range(4)] if diag == 0
-                                else [self.board[i][3 - i] for i in range(4)])
-                    for i in range(4):
-                        if diagonal[i] == 0:  # 빈 칸을 찾음
-                            r, c = (i, i) if diag == 0 else (i, 3 - i)
-                            self.board[r][c] = self.pieces.index(selected_piece) + 1
-                            _, pos_before = self.check_possibility([self.board[d][d] if diag == 0 else self.board[d][3 - d] for d in range(4)])
-                            if pos_before == 3:
-                                # 4가 되지 않게 하는 말 탐색
-                                for idx, piece in enumerate(self.available_pieces):
-                                    self.board[r][c] = self.pieces.index(piece) + 1
-                                    _, pos_after = self.check_possibility([self.board[d][d] if diag == 0 else self.board[d][3 - d] for d in range(4)])
-                                    if pos_after == 4:
-                                        self.eval_board[r][c] -= 1
-                                    else:
-                                        self.eval_board[r][c] += 1
-                                    self.board[r][c] = 0
-                            self.board[r][c] = 0 
-
-            #서브그리드는 max인 곳에 추가하고 전체를 다 따져봐야한다
-            if(max_subgrid == 2):
-                for subgrid_pos in subgrid_most_pos:
-                    r = subgrid_pos // 3
-                    c = subgrid_pos % 3
-                    subgrid = [self.board[r][c], self.board[r][c+1],
-                            self.board[r+1][c], self.board[r+1][c+1]]
-                    subgrid_indices = [(r, c), (r, c+1), (r+1, c), (r+1, c+1)]
-                    for idx, (r, c) in enumerate(subgrid_indices):
-                            if self.board[r][c] == 0:  # 빈 칸을 찾음
-                                self.board[r][c] = self.pieces.index(selected_piece) + 1
-                                # 해당 서브그리드가 승리 조건에 가까운지 평가
-                                _, pos_before = self.check_possibility([self.board[i][j] for i, j in subgrid_indices])
-                                if pos_before == 3:
-                                    # 4가 되지 않게 하는 말 탐색
-                                    for piece in self.available_pieces:
-                                        self.board[r][c] = self.pieces.index(piece) + 1
-                                        _, pos_after = self.check_possibility([self.board[i][j] for i, j in subgrid_indices])
-                                        if pos_after == 4:
-                                            self.eval_board[r][c] -= 1
-                                        else:
-                                            self.eval_board[r][c] += 1
-                                        self.board[r][c] = 0
-                                self.board[r][c] = 0
-
-            if(max(max_vals) < 2) :
-                #selected piece랑 가장 유사한곳에 둔다
-                max_val = max(max_vals)
-                for loc in available_locs:
-                    r,c = loc
-                    pos_list = []
-                    self.board[r][c] = self.pieces.index(selected_piece) + 1
-                    _, count = self.check_possibility([self.board[r][col] for col in range(4)])
-                    pos_list.append(count)
-                    _, count = self.check_possibility([self.board[row][c] for row in range(4)])
-                    pos_list.append(count)
-                    _, count = self.check_possibility([self.board[i][i] for i in range(4)])
-                    pos_list.append(count)
-                    _, count = self.check_possibility([self.board[i][3-i] for i in range(4)])
-                    pos_list.append(count)
-
-                    subgrid = [self.board[r][c], self.board[r][c+1], self.board[r+1][c], self.board[r+1][c+1]]
-                    _, count = self.check_possibility(subgrid)
-                    pos_list.append(count)
-                    self.board[r][c] = 0
-
-                    if max(pos_list) > max_val:
-                        return (4*r + c)
-                    else :
-                        return 16 # 랜덤하게 그냥 둔다
+        if(1 in [item for sublist in win_conditions_eval for item in sublist]):
+            # 2를 최대한 많이 만들면 좋다
+            self.update_eval_board_1(available_locs, selected_piece)
+            
+        # eval_board update후에는 가장 큰 값의 index를 return
 
         return np.argmax(self.eval_board) # 1차원 배열 형식으로 변경해 가장 큰 index 반환
     
