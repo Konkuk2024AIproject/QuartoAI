@@ -1,14 +1,18 @@
 import pickle
 import numpy as np
 import random
+import time
 from collections import defaultdict
 
+Piece = tuple[int, int, int, int]
+
 inf = 1e9
-production = True
+time_limit = [5, 5, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 15, 15, 5, 5]
+# production = True
 
 
 class AI:
-    def __init__(self, board: np.ndarray, available_pieces: list[tuple[int, int, int, int]], is_first: bool):
+    def __init__(self, board: np.ndarray, available_pieces: list[Piece], is_first: bool):
         self.board = board - 1  # 2D array representing the board (-1: empty, 0~15: pieces)
         self.available_pieces = available_pieces  # Tuple of available pieces (e.g., (1, 0, 1, 0))
         self.is_first = is_first  # True if the AI is player 1, False if player 2
@@ -16,46 +20,45 @@ class AI:
         self.turn = 17 - len(available_pieces)  # Current turn number
 
         # load pre-trained model
-        try:
-            with open('data.pickle', 'rb') as f:
-                data = pickle.load(f)
-                self.visits = data['visits']
-                self.wins = data['wins']
-        except FileNotFoundError:
-            self.visits = defaultdict(int)
-            self.wins = defaultdict(int)
+        # try:
+        #     with open('data.pickle', 'rb') as f:
+        #         data = pickle.load(f)
+        #         self.visits = data['visits']
+        #         self.wins = data['wins']
+        # except FileNotFoundError:
 
-    def select_piece(self) -> tuple[int, int, int, int]:
+        # Initialize MCTS variables
+        self.visits = defaultdict(int)
+        self.wins = defaultdict(int)
+
+    def select_piece(self) -> Piece:
         print(f'Selecting piece for turn {self.turn}')
 
         if self.turn == 1:
-            print('first turn')
+            print('first turn: return arbitrary piece')
             print()
             return self.available_pieces[0]
 
         self.mcts()
         parent_visit = self.visits[self.to_state(self.board, -1)]
-        # print(self.board)
 
         best_score = -inf
         best_piece = None
         for piece in self.available_pieces:
             pidx = self.to_piece_index(piece)
             state = self.to_state(self.board, pidx)
-            # print(state)
-            if (score := self.wins[state] / (1 + self.visits[state])) > best_score:
+            if (score := self.visits[state]) > best_score:
                 best_score = score
                 best_piece = piece
             print(f'{piece}: {score:.3f} ({self.wins[state]} / {self.visits[state]})')
-        print('best = ', best_piece)
+        print('best =', best_piece)
         print()
         return best_piece
 
-    def place_piece(self, selected_piece):
-        pidx = self.to_piece_index(selected_piece)
-
+    def place_piece(self, selected_piece: Piece):
         print(f'Placing piece for turn {self.turn}, selected piece = {selected_piece}')
 
+        pidx = self.to_piece_index(selected_piece)
         self.mcts(selected_piece)
         parent_visit = self.visits[self.to_state(self.board, pidx)]
 
@@ -66,55 +69,65 @@ class AI:
                 if self.board[row][col] == -1:
                     self.board[row][col] = pidx
                     state = self.to_state(self.board, -1)
-                    if (score := self.wins[state] / (1 + self.visits[state])) > best_score:
+                    if (score := self.visits[state]) > best_score:
                         best_score = score
                         best_move = (row, col)
 
                     print(f'({row}, {col}): {score:.3f} ({self.wins[state]} / {self.visits[state]})')
                     self.board[row][col] = -1
 
-        print('best = ', best_move)
+        print('best =', best_move)
         print()
 
         return best_move
 
-    def mcts(self, selected_piece: None | tuple[int, int, int, int] = None, iterations=3000):
-        for idx in range(iterations):
-            self.simulate(selected_piece)
+    def mcts(self, selected_piece: None | Piece = None):
+        start = time.time()
+        c = 0
+        while time.time() - start < time_limit[self.turn - 1]:
+            for _ in range(100):
+                self.simulate(selected_piece)
+            c += 100
 
+        print(f"Turn {self.turn} MCTS finished in {time.time() - start:.3f}s with {c} simulations")
+        print()
         # save model
-        if not production:
-            with open('data.pickle', 'wb') as f:
-                pickle.dump({'visits': self.visits, 'wins': self.wins}, f)
+        # if not production:
+        #     with open('data.pickle', 'wb') as f:
+        #         pickle.dump({'visits': self.visits, 'wins': self.wins}, f)
 
     @staticmethod
-    def to_state(board, selected_piece):
+    def to_state(board, selected_piece: int):
         return tuple((*board.ravel().tolist(), selected_piece))
 
     @staticmethod
-    def to_piece_index(piece):
+    def to_piece_index(piece: Piece):
         return sum(1 << (3 - i) for i, x in enumerate(piece) if x)
 
-    def get_score(self, state, parent_visit):
-        # decay_factor = 100 / (1 + self.visits[state])  # Adjust exploration based on visits
-        decay_factor = 1
-        return self.wins[state] / (self.visits[state] + 1) + \
-               10 * decay_factor * (2 * (1 + np.log(parent_visit + 1)) / (self.visits[state] + 1)) ** 0.5
+    def get_score(self, state, parent_visit: int, is_me: bool):
+        expect = self.wins[state] / (self.visits[state] + 1)
+        explored = np.sqrt(2 * (1 + np.log(parent_visit + 1)) / (self.visits[state] + 1))
+        if is_me:
+            return expect + 2 * explored
+        else:
+            return 1 - expect + 2 * explored
 
-    def simulate(self, selected_piece):
+    def simulate(self, selected_piece: None | Piece):
         board = self.board.copy()
         available_pieces = list(self.available_pieces)
         history = []
         parent_visit = 0
 
-        history.append(
-            self.to_state(board, self.to_piece_index(selected_piece) if selected_piece else -1)
-        )
+        history.append(self.to_state(board, self.to_piece_index(selected_piece) if selected_piece else -1))
 
         # break when not visited state
-        while not self.is_terminal(board):
+        while True:
             # print('simulate', board, selected_piece, end='\n\n')
+            turn = 17 - len(available_pieces)
+            if turn > 16:
+                break
             if selected_piece:
+                is_me = turn % 2 == self.is_first
                 piece = self.to_piece_index(selected_piece)
                 state = self.to_state(board, piece)
                 if self.visits[state] == 0:
@@ -125,7 +138,10 @@ class AI:
                 random.shuffle(positions)
                 for row, col in positions:
                     board[row][col] = piece
-                    score = self.get_score(s := self.to_state(board, -1), parent_visit)
+                    if self.check_win_by_move(board, (row, col)):
+                        best_move = (row, col)
+                        break
+                    score = self.get_score(s := self.to_state(board, -1), parent_visit, is_me)
                     if score > best_score:
                         best_score = score
                         best_move = (row, col)
@@ -136,7 +152,11 @@ class AI:
                 history.append(self.to_state(board, -1))
                 available_pieces.remove(selected_piece)
                 selected_piece = None
+
+                if self.check_win_by_move(board, best_move):
+                    break
             else:
+                is_me = turn % 2 != self.is_first
                 state = self.to_state(board, -1)
                 if self.visits[state] == 0:
                     break
@@ -144,7 +164,7 @@ class AI:
                 best_move = None
                 for piece in available_pieces:
                     pidx = self.to_piece_index(piece)
-                    score = self.get_score(s := self.to_state(board, pidx), parent_visit)
+                    score = self.get_score(s := self.to_state(board, pidx), parent_visit, is_me)
                     if score > best_score:
                         best_score = score
                         best_move = piece
@@ -153,36 +173,37 @@ class AI:
                 history.append(self.to_state(board, self.to_piece_index(piece)))
             parent_visit = self.visits[state]
 
-        while not self.is_terminal(board):
+        while True:
+            turn = 17 - len(available_pieces)
+            if turn > 16:
+                break
             if selected_piece:
                 pidx = self.to_piece_index(selected_piece)
                 empty_positions = [(i, j) for i in range(4) for j in range(4) if board[i, j] == -1]
                 random.shuffle(empty_positions)
-                turn = 17 - len(available_pieces)
                 candidate = []
                 for row, col in empty_positions:
                     board[row, col] = pidx
-                    if self.check_win(board):
-                        candidate = [(row, col)]
+                    if self.check_win_by_move(board, (row, col)):
                         break
                     else:
                         candidate.append((row, col))
                     board[row, col] = -1
-                if not candidate:
-                    row, col = random.choice(empty_positions)
                 else:
-                    row, col = random.choice(candidate)
-                board[row, col] = pidx
+                    row, col = random.choice(empty_positions if not candidate else candidate)
+                    board[row, col] = pidx
                 history.append(self.to_state(board, -1))
                 available_pieces.remove(selected_piece)
                 selected_piece = None
+
+                if self.check_win_by_move(board, (row, col)):
+                    break
             else:
                 selected_piece = random.choice(available_pieces)
                 history.append(self.to_state(board, self.to_piece_index(selected_piece)))
 
-        result = self.get_result(board)
         end_turn = 16 - len(available_pieces)
-        score = .5 if result == 0 else (1 if end_turn % 2 == self.is_first else 0)
+        score = .5 if not self.check_win(board) else (1 if end_turn % 2 == self.is_first else 0)
 
         # print('score =', score)
         for state in history:
@@ -190,34 +211,52 @@ class AI:
             self.visits[state] += 1
             self.wins[state] += score
 
-    def is_terminal(self, board):
+    def is_terminal(self, board, last_move=None):
         # Check for terminal state (win or full board)
-        return self.check_win(board) or not np.any(board == -1)
-
-    def get_result(self, board):
-        if self.check_win(board):
-            return 1
-        return 0
+        win = self.check_win_by_move(board, last_move) if last_move else self.check_win(board)
+        return win or not np.any(board == -1)
 
     def check_win(self, board):
-        for row in board:
-            if self.is_winning_set(row):
-                return True
-        for col in board.T:
-            if self.is_winning_set(col):
-                return True
+        if any(self.is_winning_set(board[i, :]) for i in range(4)):
+            return True
+        if any(self.is_winning_set(board[:, j]) for j in range(4)):
+            return True
+
         if self.is_winning_set(np.diag(board)):
             return True
         if self.is_winning_set(np.diag(np.fliplr(board))):
             return True
-        # check 2x2 subgrids
+
         for i in range(3):
             for j in range(3):
-                if self.is_winning_set(board[i:i + 2, j:j + 2].ravel()):
+                subgrid = board[i:i+2, j:j+2]
+                if self.is_winning_set(subgrid.ravel()):
                     return True
         return False
 
-    def is_winning_set(self, line):
+    def check_win_by_move(self, board, last_move):
+        row, col = last_move
+
+        if self.is_winning_set(board[row, :]):
+            return True
+        if self.is_winning_set(board[:, col]):
+            return True
+
+        if row == col and self.is_winning_set(np.diag(board)):
+            return True
+
+        if row + col == 3 and self.is_winning_set(np.diag(np.fliplr(board))):
+            return True
+
+        # Check for surrounding 2x2 square
+        for i in range(max(0, row - 1), min(2, row) + 1):
+            for j in range(max(0, col - 1), min(2, col) + 1):
+                subgrid = board[i:i+2, j:j+2]
+                if self.is_winning_set(subgrid.ravel()):
+                    return True
+        return False
+
+    def is_winning_set(self, line: np.ndarray):
         if -1 in line:
             return False
         for i in range(4):
@@ -226,5 +265,6 @@ class AI:
         return False
 
 
+# Declare instances
 P1 = lambda board, available_pieces: AI(board, available_pieces, True)
 P2 = lambda board, available_pieces: AI(board, available_pieces, False)
