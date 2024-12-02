@@ -43,7 +43,7 @@ class P1():
                     row = pos // 4
                     col = pos % 4
                     if((row,col) in available_locs):
-                        print("refactor1\n",self.eval_board)
+                        
                         return (row, col)
                     else:
                         self.eval_board[row][col] -= 500
@@ -304,7 +304,7 @@ class P1():
         max_positions = []
         for cond_idx, win_condition in enumerate(win_conditions_eval):
             max_positions.append([(cond_idx, linenum, symidx) for linenum, line in enumerate(win_condition) for symidx, val in enumerate(line) if val == same_value])
-        print("refactor: maxpositions = ", max_positions)
+        
         return max_positions
         # (row인지 col인지 cross인지 grid인지, 몇번째인지, max attribute의 index)
         # (0: row, 1: col, 2: cross, 3: grid)
@@ -343,10 +343,10 @@ class P1():
                         if(piece[symidx] == sg_sym[symidx]):
                             piece_make_4s.append(piece)
                             self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
-                print("refactor2\n",self.eval_board)
+                
             else: # 말을 뒀는데 val의 최댓값이 똑같이 2임(2는 많이 만들수록 좋음)
                 self.eval_board[r][c] += 3 # 나쁘지 않은 수임
-                print("refactor3\n",self.eval_board)
+                
 
             self.board[r][c] = 0 # 원상복구
 
@@ -358,10 +358,10 @@ class P1():
             recalculated_max_val = max(self.calculate_evaluation_value(r, c, selected_piece)) # 2가 되는 부분이 있는지 확인
 
             if recalculated_max_val == 2:
-                print("refactor4\n",self.eval_board)
+                
                 self.eval_board[r][c] += 3
             else: # 말을 뒀는데 val의 최댓값이 똑같이 1임
-                print("refactor5\n",self.eval_board)
+                
                 self.eval_board[r][c] += 3 #나쁘지 않은 수임
 
             self.board[r][c] = 0 # 원상복구
@@ -372,7 +372,7 @@ class P1():
         available_locs = [(row, col) for row, col in product(range(4), range(4)) if self.board[row][col]==0]
         win_conditions_eval = [self.row_eval, self.col_eval, self.cross_eval, self.subgrid_eval]
         win_conditions_sym = [self.row_sym, self.col_sym, self.cross_sym, self.subgrid_sym]
-        print("win_conditions_eval items : ",np.ravel([item for sublist in win_conditions_eval for item in sublist]))
+        
         max_vals = []
         # **그냥 0이 아닌 부분에 뒀을 때 나한테 좋은지 안좋은지 eval_board에 업데이트
         # tree 형태가 아니라 eval_board를 이용해 전역적으로 값을 업데이트 해가며 최적의 값을 찾는다
@@ -501,6 +501,6 @@ class P1():
             self.update_eval_board_1(available_locs, selected_piece)
             
         # eval_board update후에는 가장 큰 값의 index를 return
-        print("refactor6\n",self.eval_board)
+        
         return np.argmax(self.eval_board) # 1차원 배열 형식으로 변경해 가장 큰 index 반환
     
