@@ -395,12 +395,12 @@ class P1():
         # 내가 가지고 있는 말을 뒀을 때 이길 수 있는 곳이 있으면 바로 return
         for loc in available_locs:
             r, c = loc
+            self.board[r][c] = self.pieces.index(selected_piece) + 1
             recalculated_max_val = max(self.calculate_evaluation_value(r, c, selected_piece))
 
             if recalculated_max_val == 4:
                 return (4*r + c)
-            else : # 3인 곳은 있지만 내가 거기 둬서 이길 수 있는 말을 안가지고 있는거임
-                break
+            self.board[r][c] = 0
 
         # val이 3인 곳이 존재할 때 (eval_board 업데이트)
         # -> 내가 val을 4로 만들 수 있는 조각이 있다면 val을 4로 하는 위치에 둔다
