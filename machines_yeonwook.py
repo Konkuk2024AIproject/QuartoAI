@@ -16,15 +16,12 @@ class P1():
         if(self.board.max()):
             self.evaluate_piece()
             while(1):
-                print("eval_piece", self.eval_piece)
                 best_piece = self.pieces[self.eval_piece.argmax()]
-                print("best_piece", best_piece)
 
                 if(best_piece in self.available_pieces): # best_piece가 available한 경우
                     return best_piece
                 else: # best_piece가 available하지 않은 경우 그 piece를 eval_piece의 최솟값으로 변경
                     self.eval_piece[self.eval_piece.argmax()] -= 500
-                    print("eval_board print", self.eval_piece[self.eval_piece.argmax()])
             
         # 첫 선택이면 그냥 무조건 ENFJ를 준다
         else:
@@ -46,13 +43,13 @@ class P1():
                     row = pos // 4
                     col = pos % 4
                     if((row,col) in available_locs):
+                        print("refactor1\n",self.eval_board)
                         return (row, col)
                     else:
                         self.eval_board[row][col] -= 500
                         pos = np.argmax(self.eval_board)
                     
             else :
-                print(self.eval_board)
                 return random.choice(available_locs)
             
         else: # 내가 첫수라면 무조건 1,1에 둔다
@@ -160,7 +157,7 @@ class P1():
                     if(sym != -1 and self.row_eval[sindex][idx] == 3):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([36 if piece in valid_piece_set else 0 for piece in self.pieces])
+                        result_array = np.array([80 if piece in valid_piece_set else 0 for piece in self.pieces])
                         self.eval_piece -= np.array(result_array)
         
         if(3 in np.ravel(np.array(self.col_eval))):
@@ -170,7 +167,7 @@ class P1():
                     if(sym != -1 and self.col_eval[sindex][idx] == 3):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([36 if piece in valid_piece_set else 0 for piece in self.pieces])
+                        result_array = np.array([80 if piece in valid_piece_set else 0 for piece in self.pieces])
                         self.eval_piece -= np.array(result_array)
         
         if(3 in np.ravel(np.array(self.cross_eval))):
@@ -180,7 +177,7 @@ class P1():
                     if(sym != -1 and self.cross_eval[sindex][idx] == 3):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([36 if piece in valid_piece_set else 0 for piece in self.pieces])
+                        result_array = np.array([80 if piece in valid_piece_set else 0 for piece in self.pieces])
                         self.eval_piece -= np.array(result_array)
 
         if(3 in np.ravel(np.array(self.subgrid_eval))):
@@ -190,7 +187,7 @@ class P1():
                     if(sym != -1 and self.subgrid_eval[sindex][idx] == 3):
                         valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
                         valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([36 if piece in valid_piece_set else 0 for piece in self.pieces])
+                        result_array = np.array([80 if piece in valid_piece_set else 0 for piece in self.pieces])
                         self.eval_piece -= np.array(result_array)
         
         if(2 in np.ravel(np.array(self.row_eval))):
@@ -281,7 +278,7 @@ class P1():
                         # val이 1인곳을 2로 만드는 piece는 상대에게 줬을 때 board에 2인 val들이 많아지게 한다
                         self.eval_piece += np.array(result_array)
 
-
+    # 해당 row, col의 eval 값, 대각선 2개의 eval값, subgrid 9개의 eval값 해서 총 13개 원소 return
     def calculate_evaluation_value(self, r, c, selected_piece):
         pos_list = []
         self.board[r][c] = self.pieces.index(selected_piece) + 1
@@ -299,7 +296,7 @@ class P1():
                 subgrid = [self.board[sg_r][sg_c], self.board[sg_r][sg_c+1], self.board[sg_r+1][sg_c], self.board[sg_r+1][sg_c+1]]
                 _, count = self.check_possibility(subgrid)
                 pos_list.append(max(count))
-        return max(pos_list)
+        return pos_list
     
 
     # 지정된 값(1,2,3)이 위치한 row, col, cross, grid의 인덱스를 전부 파악
@@ -307,6 +304,7 @@ class P1():
         max_positions = []
         for cond_idx, win_condition in enumerate(win_conditions_eval):
             max_positions.append([(cond_idx, linenum, symidx) for linenum, line in enumerate(win_condition) for symidx, val in enumerate(line) if val == same_value])
+        print("refactor: maxpositions = ", max_positions)
         return max_positions
         # (row인지 col인지 cross인지 grid인지, 몇번째인지, max attribute의 index)
         # (0: row, 1: col, 2: cross, 3: grid)
@@ -317,21 +315,38 @@ class P1():
             self.board[r][c] = self.pieces.index(selected_piece) + 1
             # 내가 받은걸 넣었을 때 val값이 바뀌는지 체크해봐야함
             # 2였다가 3이 되면 남은 말 중에 4로 만들 수 있는게 있는지 확인
-            # 4로 만들 수 있는 말이 1개보다 많으면 r,c에 해당하는 eval_board 값 -5
-            recalculated_max_val = self.calculate_evaluation_value(r, c, selected_piece) # 3이 되는 부분이 있는지 확인
+            recalculated_max_val = max(self.calculate_evaluation_value(r, c, selected_piece)) # 3이 되는 부분이 있는지 확인
 
             if recalculated_max_val == 3:
-                piece_make_4s = []
                 #남은 말 중에 4로 만드는게 남았는지 체크
                 for r_sym in self.row_sym:
+                    piece_make_4s = []
                     for piece in self.available_pieces:
                         if(piece[symidx] == r_sym[symidx]):
                             piece_make_4s.append(piece)
-                if(len(piece_make_4s) < 2): # 1개만 있으면 그걸 피하고 다른거만 주면 됨. 나쁘지 않은 수임
-                    self.eval_board[r][c] += len(piece_make_4s)
-                else: self.eval_board[r][c] -= (2*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
-            else: # 말을 뒀는데 val의 최댓값이 똑같이 2임(2를 많이 만들수록 좋음)
-                self.eval_board[r][c] += 2 #나쁘지 않은 수임
+                            self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
+                for c_sym in self.col_sym:
+                    piece_make_4s = []
+                    for piece in self.available_pieces:
+                        if(piece[symidx] == c_sym[symidx]):
+                            piece_make_4s.append(piece)
+                            self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
+                for cr_sym in self.cross_sym:
+                    piece_make_4s = []
+                    for piece in self.available_pieces:
+                        if(piece[symidx] == cr_sym[symidx]):
+                            piece_make_4s.append(piece)
+                            self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
+                for sg_sym in self.subgrid_sym:
+                    piece_make_4s = []
+                    for piece in self.available_pieces:
+                        if(piece[symidx] == sg_sym[symidx]):
+                            piece_make_4s.append(piece)
+                            self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
+                print("refactor2\n",self.eval_board)
+            else: # 말을 뒀는데 val의 최댓값이 똑같이 2임(2는 많이 만들수록 좋음)
+                self.eval_board[r][c] += 3 # 나쁘지 않은 수임
+                print("refactor3\n",self.eval_board)
 
             self.board[r][c] = 0 # 원상복구
 
@@ -340,12 +355,14 @@ class P1():
             self.board[r][c] = self.pieces.index(selected_piece) + 1
             # 내가 받은걸 넣었을 때 val값이 바뀌는지 체크해봐야함
             # 2를 최대한 많이 만들도록 한다.
-            recalculated_max_val = self.calculate_evaluation_value(r, c, selected_piece) # 2가 되는 부분이 있는지 확인
+            recalculated_max_val = max(self.calculate_evaluation_value(r, c, selected_piece)) # 2가 되는 부분이 있는지 확인
 
             if recalculated_max_val == 2:
-                self.eval_board[r][c] += 2
+                print("refactor4\n",self.eval_board)
+                self.eval_board[r][c] += 3
             else: # 말을 뒀는데 val의 최댓값이 똑같이 1임
-                self.eval_board[r][c] += 1 #나쁘지 않은 수임
+                print("refactor5\n",self.eval_board)
+                self.eval_board[r][c] += 3 #나쁘지 않은 수임
 
             self.board[r][c] = 0 # 원상복구
 
@@ -355,7 +372,7 @@ class P1():
         available_locs = [(row, col) for row, col in product(range(4), range(4)) if self.board[row][col]==0]
         win_conditions_eval = [self.row_eval, self.col_eval, self.cross_eval, self.subgrid_eval]
         win_conditions_sym = [self.row_sym, self.col_sym, self.cross_sym, self.subgrid_sym]
-
+        print("win_conditions_eval items : ",np.ravel([item for sublist in win_conditions_eval for item in sublist]))
         max_vals = []
         # **그냥 0이 아닌 부분에 뒀을 때 나한테 좋은지 안좋은지 eval_board에 업데이트
         # tree 형태가 아니라 eval_board를 이용해 전역적으로 값을 업데이트 해가며 최적의 값을 찾는다
@@ -374,12 +391,11 @@ class P1():
 
         # -1을 return하면 eval_board 확인해서 가장 큰 곳에 둔다
         # 0~15의 값을 return하면 해당 index에 둔다
-        # 16을 return하면 가능한 위치 중 random 위치에 둔다 (이건 필요 없을것 같기도)
 
         # 내가 가지고 있는 말을 뒀을 때 이길 수 있는 곳이 있으면 바로 return
         for loc in available_locs:
             r, c = loc
-            recalculated_max_val = self.calculate_evaluation_value(r,c,selected_piece)
+            recalculated_max_val = max(self.calculate_evaluation_value(r, c, selected_piece))
 
             if recalculated_max_val == 4:
                 return (4*r + c)
@@ -389,23 +405,37 @@ class P1():
         # val이 3인 곳이 존재할 때 (eval_board 업데이트)
         # -> 내가 val을 4로 만들 수 있는 조각이 있다면 val을 4로 하는 위치에 둔다
         # -> val을 4로 만들 수 있는 위치가 없는 경우라 eval_board 업데이트
-        if(3 in [item for sublist in win_conditions_eval for item in sublist]):
+        if(3 in np.ravel([item for sublist in win_conditions_eval for item in sublist])):
             max_positions = self.check_position(win_conditions_eval, 3) # 3인 곳을 찾아줌
-            for max_position in max_positions:
-                cond_idx, linenum, symidx = max_position
-                if(cond_idx == 0): # row
-                    locs = [(r,c) for (r,c) in available_locs if r==linenum]
-                    for (r,c) in locs:
-                        self.eval_board[r][c] = self.pieces.index(selected_piece) + 1
-                        # 내가 받은걸 넣어도 val값이 안바뀔거다(for문을 통과했으니까)
-                        # 해당부분에 말을 뒀을 때 다른 부분이 3이 되는지 확인한다
-                        # 3이 되는 부분이 있는경우 말중에 4로 만드는게 있다면 -16한다
-                        #
+            for cond in max_positions:
+                if(len(cond)!= 0):
+                    for max_position in cond:
+                        cond_idx, linenum, symidx = max_position
+                        locs = [(r,c) for (r,c) in available_locs if r==linenum]
+                        for (r,c) in locs:
+                            self.board[r][c] = self.pieces.index(selected_piece) + 1
+                            # 내가 받은걸 넣어도 val값이 안바뀔거다(for문을 통과했으니까)
+                            # 해당부분에 말을 뒀을 때 다른 부분이 3이 되는지 확인한다
+                            # => pos_list에서 3인 곳이 있는지, 있다면 두 특성이 다른지 확인 두 특성이 다르다면 -80한다
+                            # 이런식으로 계속
+                            pos_list = self.check_position(win_conditions_eval, 3) # board가 변경되었을 때 다시 3인 곳을 찾아줌
+                            for pos_cond in pos_list:
+                                if(len(pos_cond)!=0):
+                                    for pos in pos_cond:
+                                        new_cond_idx, new_linenum, new_symidx = pos
+                                        if(symidx == new_symidx): # 같은 symbol이 겹치는지 확인
+                                            # 해당 심볼이 다른지 확인(원래 3이었던 값의 symbol와 새로 3이된 symbol)
+                                            sym_to_check = win_conditions_sym[cond_idx][linenum][symidx]
+                                            if(win_conditions_sym[new_cond_idx][new_linenum][new_symidx] != sym_to_check):
+                                                # 다르다면 eval_board[r][c]에 -80한다(상대가 무조건 이길 수 있는 수이기 때문에)
+                                                self.eval_board[r][c] -= 80
+                                            else: # 같다면 available piece 중에 해당 심볼을 무효화 할 수 있는게 몇개 남았는지 체크
+                                                possible_pieces = [piece for piece in self.available_pieces if piece[new_symidx] != sym_to_check]
+                                                self.eval_board[r][c] += len(possible_pieces)
 
-
-                        # 2였다가 3이 되면 남은 말 중에 4로 만들 수 있는게 있는지 확인
-                        # 4로 만들 수 있는 말이 1개보다 많으면 r,c에 해당하는 eval_board 값 -3
-                        recalculated_max_val = self.calculate_evaluation_value(r, c, selected_piece)
+                                        # 2였다가 3이 되면 남은 말 중에 4로 만들 수 있는게 있는지 확인
+                                        # 4로 만들 수 있는 말이 1개보다 많으면 r,c에 해당하는 eval_board 값 -3
+                            self.board[r][c] = 0
 
         
         # 이건 max값이 2인 경우니까 내가 두고 다음 차례에 4가 되지 않게 하는 말이 남았으면
@@ -414,60 +444,63 @@ class P1():
         
         # (row인지 col인지 cross인지 grid인지, 몇번째인지, max attribute의 index)
         # (0: row, 1: col, 2: cross, 3: grid)
-        if(2 in [item for sublist in win_conditions_eval for item in sublist]):
+        if(2 in np.ravel([item for sublist in win_conditions_eval for item in sublist])):
             max_positions = self.check_position(win_conditions_eval, 2) # 2인 곳을 찾아줌
             
-            for max_position in max_positions:
-                cond_idx, linenum, symidx = max_position
-                if(cond_idx == 0): # row
-                    locs = [(r,c) for (r,c) in available_locs if (r==linenum and self.board[r][c] == 0)]
-                    self.update_eval_board_2(symidx, locs, selected_piece)
+            for cond in max_positions:
+                if(len(cond)!= 0):
+                    for max_position in cond:
+                        cond_idx, linenum, symidx = max_position
+                        print("max_position : ", max_position)
+                        if(cond_idx == 0): # row
+                            locs = [(r,c) for (r,c) in available_locs if (r==linenum and self.board[r][c] == 0)]
+                            self.update_eval_board_2(symidx, locs, selected_piece)
 
-                elif(cond_idx == 1): # col
-                    locs = [(r,c) for (r,c) in available_locs if (c==linenum and self.board[r][c] == 0)]
-                    self.update_eval_board_2(symidx, locs, selected_piece)
-                
-                elif(cond_idx == 2): # cross
-                    locs = [(i,i) for i in range(4) if (i==linenum and self.board[r][c] == 0)]
-                    self.update_eval_board_2(symidx, locs, selected_piece)
-                    locs = [(i,3-i) for i in range(4) if (i==linenum and self.board[r][c] == 0)]
-                    self.update_eval_board_2(symidx, locs, selected_piece)
-                
-                else: # subgrids
-                    if(linenum == 0):
-                        locs = [(i,j) for i in range(2) for j in range(2) if(self.board[i][j] == 0)]
-                        self.update_eval_board_2(symidx, locs, selected_piece)
-                    elif(linenum == 3 or linenum == 6):
-                        sr = linenum//3
-                        sc = linenum%3
-                        locs = [(i,j) for i in range(sr,sr+2) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
-                        self.update_eval_board_2(symidx, locs, selected_piece)
-                        locs = [(i,j) for i in range(sr-1,sr+1) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
-                        self.update_eval_board_2(symidx, locs, selected_piece)
-                    elif(linenum == 1 or linenum == 2):
-                        sr = 0
-                        sc = linenum
-                        locs = [(i,j) for i in range(sr,sr+2) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
-                        self.update_eval_board_2(symidx, locs, selected_piece)
-                        locs = [(i,j) for i in range(sr,sr+2) for j in range(sc-1, sc+1) if(self.board[i][j] == 0)]
-                        self.update_eval_board_2(symidx, locs, selected_piece)
-                    else:
-                        sr = linenum//3
-                        sc = linenum%3
-                        locs = [(i,j) for i in range(sr-1,sr+1) for j in range(sc-1, sc+1) if(self.board[i][j] == 0)]
-                        self.update_eval_board_2(symidx, locs, selected_piece)
-                        locs = [(i,j) for i in range(sr-1,sr+1) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
-                        self.update_eval_board_2(symidx, locs, selected_piece)
-                        locs = [(i,j) for i in range(sc, sc+2) for j in range(sr-1,sr+1) if(self.board[i][j] == 0)]
-                        self.update_eval_board_2(symidx, locs, selected_piece)
-                        locs = [(i,j) for i in range(sc, sc+2) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
-                        self.update_eval_board_2(symidx, locs, selected_piece)
+                        elif(cond_idx == 1): # col
+                            locs = [(r,c) for (r,c) in available_locs if (c==linenum and self.board[r][c] == 0)]
+                            self.update_eval_board_2(symidx, locs, selected_piece)
+                        
+                        elif(cond_idx == 2): # cross
+                            locs = [(i,i) for i in range(4) if (i==linenum and self.board[r][c] == 0)]
+                            self.update_eval_board_2(symidx, locs, selected_piece)
+                            locs = [(i,3-i) for i in range(4) if (i==linenum and self.board[r][c] == 0)]
+                            self.update_eval_board_2(symidx, locs, selected_piece)
+                        
+                        else: # subgrids
+                            if(linenum == 0):
+                                locs = [(i,j) for i in range(2) for j in range(2) if(self.board[i][j] == 0)]
+                                self.update_eval_board_2(symidx, locs, selected_piece)
+                            elif(linenum == 3 or linenum == 6):
+                                sr = linenum//3
+                                sc = linenum%3
+                                locs = [(i,j) for i in range(sr,sr+2) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
+                                self.update_eval_board_2(symidx, locs, selected_piece)
+                                locs = [(i,j) for i in range(sr-1,sr+1) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
+                                self.update_eval_board_2(symidx, locs, selected_piece)
+                            elif(linenum == 1 or linenum == 2):
+                                sr = 0
+                                sc = linenum
+                                locs = [(i,j) for i in range(sr,sr+2) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
+                                self.update_eval_board_2(symidx, locs, selected_piece)
+                                locs = [(i,j) for i in range(sr,sr+2) for j in range(sc-1, sc+1) if(self.board[i][j] == 0)]
+                                self.update_eval_board_2(symidx, locs, selected_piece)
+                            else:
+                                sr = linenum//3
+                                sc = linenum%3
+                                locs = [(i,j) for i in range(sr-1,sr+1) for j in range(sc-1, sc+1) if(self.board[i][j] == 0)]
+                                self.update_eval_board_2(symidx, locs, selected_piece)
+                                locs = [(i,j) for i in range(sr-1,sr+1) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
+                                self.update_eval_board_2(symidx, locs, selected_piece)
+                                locs = [(i,j) for i in range(sc, sc+2) for j in range(sr-1,sr+1) if(self.board[i][j] == 0)]
+                                self.update_eval_board_2(symidx, locs, selected_piece)
+                                locs = [(i,j) for i in range(sc, sc+2) for j in range(sc, sc+2) if(self.board[i][j] == 0)]
+                                self.update_eval_board_2(symidx, locs, selected_piece)
 
-        if(1 in [item for sublist in win_conditions_eval for item in sublist]):
+        if(1 in np.ravel([item for sublist in win_conditions_eval for item in sublist])):
             # 2를 최대한 많이 만들면 좋다
             self.update_eval_board_1(available_locs, selected_piece)
             
         # eval_board update후에는 가장 큰 값의 index를 return
-
+        print("refactor6\n",self.eval_board)
         return np.argmax(self.eval_board) # 1차원 배열 형식으로 변경해 가장 큰 index 반환
     
