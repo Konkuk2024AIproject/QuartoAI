@@ -1,15 +1,18 @@
 import numpy as np
 from multiprocessing import Pool, cpu_count
 
-# from machines_p1 import P1
-from machines_yeonwook import P1
-from seojin_machine import P2
 # from machines_p2 import P2
-# from yubin_p2 import P2
+from machines_yeonwook import P1
+# from minmax_jih import P2
+# from machines_P2_jaejin import P2
+from machines_yeonwook2 import P2
+# from machines_seojin import P2
+# from machines_p2 import P2
+# from machines_yubin import P2
 import time
 
 TF = (0, 1)
-ITERATIONS = 1
+ITERATIONS = 50
 result = [0, 0, 0]  # [Player 1 win, Player 2 win, Draw]
 
 def check_group(group):

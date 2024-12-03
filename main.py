@@ -3,7 +3,8 @@ import pygame
 import numpy as np
 
 from machines_yeonwook import P1
-from machines_yubin import P2
+# from machines_yubin import P2
+from minmax_jih import P2
 import time
 
 players = {

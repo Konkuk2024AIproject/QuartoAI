@@ -2,12 +2,12 @@ import numpy as np
 import random
 from itertools import product
 import copy
-
+# 필승전략 : 어떤특성이 겹치는거 3개, 그 반대특성이 겹치는거 3개를 동시에 상대가 만들도록 한다
 class P1():
     def __init__(self, board, available_pieces):
         self.pieces = [(i, j, k, l) for i in range(2) for j in range(2) for k in range(2) for l in range(2)]  # All 16 pieces
         self.board = copy.deepcopy(board) # Include piece indices. 0:empty / 1~16:piece
-        self.available_pieces = available_pieces # Currently available pieces in a tuple type (e.g. (1, 0, 1, 0))
+        self.available_pieces = copy.deepcopy(available_pieces) # Currently available pieces in a tuple type (e.g. (1, 0, 1, 0))
         self.eval_board = np.zeros((4, 4), dtype=int)
         self.eval_piece = np.zeros(len(self.pieces))
     
@@ -19,13 +19,14 @@ class P1():
                 best_piece = self.pieces[self.eval_piece.argmax()]
 
                 if(best_piece in self.available_pieces): # best_piece가 available한 경우
+                    # print("eval piece : \n", self.eval_piece)
                     return best_piece
                 else: # best_piece가 available하지 않은 경우 그 piece를 eval_piece의 최솟값으로 변경
                     self.eval_piece[self.eval_piece.argmax()] -= 500
             
-        # 첫 선택이면 그냥 무조건 ENFJ를 준다
+        # 첫 선택이면 랜덤선택
         else:
-            return (1,0,1,1) #ENFJ
+            return random.choice(self.available_pieces) #랜덤 선택
             
 
     def place_piece(self, selected_piece):
@@ -43,7 +44,7 @@ class P1():
                     row = pos // 4
                     col = pos % 4
                     if((row,col) in available_locs):
-                        
+                        # print("eval board : \n", self.eval_board)
                         return (row, col)
                     else:
                         self.eval_board[row][col] -= 500
@@ -324,30 +325,29 @@ class P1():
                     for piece in self.available_pieces:
                         if(piece[symidx] == r_sym[symidx]):
                             piece_make_4s.append(piece)
-                            self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
+                    self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
                 for c_sym in self.col_sym:
                     piece_make_4s = []
                     for piece in self.available_pieces:
                         if(piece[symidx] == c_sym[symidx]):
                             piece_make_4s.append(piece)
-                            self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
+                    self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
                 for cr_sym in self.cross_sym:
                     piece_make_4s = []
                     for piece in self.available_pieces:
                         if(piece[symidx] == cr_sym[symidx]):
                             piece_make_4s.append(piece)
-                            self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
+                    self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
                 for sg_sym in self.subgrid_sym:
                     piece_make_4s = []
                     for piece in self.available_pieces:
                         if(piece[symidx] == sg_sym[symidx]):
                             piece_make_4s.append(piece)
-                            self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
+                    self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
                 
             else: # 말을 뒀는데 val의 최댓값이 똑같이 2임(2는 많이 만들수록 좋음)
                 self.eval_board[r][c] += 3 # 나쁘지 않은 수임
                 
-
             self.board[r][c] = 0 # 원상복구
 
     def update_eval_board_1(self, locs, selected_piece):
@@ -362,7 +362,7 @@ class P1():
                 self.eval_board[r][c] += 3
             else: # 말을 뒀는데 val의 최댓값이 똑같이 1임
                 
-                self.eval_board[r][c] += 3 #나쁘지 않은 수임
+                self.eval_board[r][c] += 1 #나쁘지 않은 수임
 
             self.board[r][c] = 0 # 원상복구
 
@@ -395,30 +395,51 @@ class P1():
         # 내가 가지고 있는 말을 뒀을 때 이길 수 있는 곳이 있으면 바로 return
         for loc in available_locs:
             r, c = loc
+            self.board[r][c] = self.pieces.index(selected_piece) + 1
             recalculated_max_val = max(self.calculate_evaluation_value(r, c, selected_piece))
 
             if recalculated_max_val == 4:
                 return (4*r + c)
             else : # 3인 곳은 있지만 내가 거기 둬서 이길 수 있는 말을 안가지고 있는거임
-                break
+                self.board[r][c] = 0
+
+        # 한 승리조건에 2개 이상의 특성이 겹치는 경우 남은 말중에 
 
         # val이 3인 곳이 존재할 때 (eval_board 업데이트)
         # -> 내가 val을 4로 만들 수 있는 조각이 있다면 val을 4로 하는 위치에 둔다
         # -> val을 4로 만들 수 있는 위치가 없는 경우라 eval_board 업데이트
         if(3 in np.ravel([item for sublist in win_conditions_eval for item in sublist])):
             max_positions = self.check_position(win_conditions_eval, 3) # 3인 곳을 찾아줌
+            # print("max_positions : ", max_positions)
             for cond in max_positions:
-                if(len(cond)!= 0):
+                if(len(cond) != 0):
                     for max_position in cond:
                         cond_idx, linenum, symidx = max_position
-                        locs = [(r,c) for (r,c) in available_locs if r==linenum]
+                        if(cond_idx == 0):
+                            locs = [(r,c) for (r,c) in available_locs if r==linenum]
+                        elif(cond_idx == 1):
+                            locs = [(r,c) for (r,c) in available_locs if c==linenum]
+                        elif(cond_idx == 2):
+                            locs = [(r,c) for (r,c) in available_locs if(r==c or r+c==3)] # 대각선
+                        else:
+                            r = linenum//3
+                            c = linenum%3
+                            locs = [(r,c),(r,c+1),(r+1,c),(r+1,c+1)]
+                        # print("locs: ", locs)
                         for (r,c) in locs:
                             self.board[r][c] = self.pieces.index(selected_piece) + 1
+                            # 먼저, 현재 어떤 attribute가 3개 겹치는 승리 조건을 무효화 할 수 있는 곳이 있다면 가중치를 둔다
+                            # 많은 attribute 최대한 겹치지 않게 할 수 있는 곳일 수록 (승리조건 성립을 무효화 할 수 있을 수록) 그곳에 놓는것이 유리
+                            if(selected_piece[symidx] != win_conditions_sym[cond_idx][linenum][symidx]):
+                                self.eval_board[r][c] += 10
+
                             # 내가 받은걸 넣어도 val값이 안바뀔거다(for문을 통과했으니까)
                             # 해당부분에 말을 뒀을 때 다른 부분이 3이 되는지 확인한다
                             # => pos_list에서 3인 곳이 있는지, 있다면 두 특성이 다른지 확인 두 특성이 다르다면 -80한다
-                            # 이런식으로 계속
+                            # 이런식으로 계속...
+
                             pos_list = self.check_position(win_conditions_eval, 3) # board가 변경되었을 때 다시 3인 곳을 찾아줌
+                            # print("find 3 : ", pos_list)
                             for pos_cond in pos_list:
                                 if(len(pos_cond)!=0):
                                     for pos in pos_cond:
@@ -433,8 +454,6 @@ class P1():
                                                 possible_pieces = [piece for piece in self.available_pieces if piece[new_symidx] != sym_to_check]
                                                 self.eval_board[r][c] += len(possible_pieces)
 
-                                        # 2였다가 3이 되면 남은 말 중에 4로 만들 수 있는게 있는지 확인
-                                        # 4로 만들 수 있는 말이 1개보다 많으면 r,c에 해당하는 eval_board 값 -3
                             self.board[r][c] = 0
 
         
@@ -451,7 +470,6 @@ class P1():
                 if(len(cond)!= 0):
                     for max_position in cond:
                         cond_idx, linenum, symidx = max_position
-                        print("max_position : ", max_position)
                         if(cond_idx == 0): # row
                             locs = [(r,c) for (r,c) in available_locs if (r==linenum and self.board[r][c] == 0)]
                             self.update_eval_board_2(symidx, locs, selected_piece)
