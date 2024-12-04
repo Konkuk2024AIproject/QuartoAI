@@ -3,6 +3,8 @@ import random
 from itertools import product
 import copy
 # 필승전략 : 어떤특성이 겹치는거 3개, 그 반대특성이 겹치는거 3개를 동시에 상대가 만들도록 한다
+# 아니면 내가 33 만들고 상대한테 그거랑 최대한 다른말 주기(폭탄돌리기)
+
 class P1():
     def __init__(self, board, available_pieces):
         self.pieces = [(i, j, k, l) for i in range(2) for j in range(2) for k in range(2) for l in range(2)]  # All 16 pieces
@@ -17,14 +19,11 @@ class P1():
             self.evaluate_piece()
             while(1):
                 best_piece = self.pieces[self.eval_piece.argmax()]
-
                 if(best_piece in self.available_pieces): # best_piece가 available한 경우
                     # print("eval piece : \n", self.eval_piece)
                     return best_piece
                 else: # best_piece가 available하지 않은 경우 그 piece를 eval_piece의 최솟값으로 변경
                     self.eval_piece[self.eval_piece.argmax()] -= 500
-            
-        # 첫 선택이면 랜덤선택
         else:
             return random.choice(self.available_pieces) #랜덤 선택
             
@@ -33,28 +32,15 @@ class P1():
         # selected_piece: The selected piece that you have to place on the board (e.g. (1, 0, 1, 0)).
         available_locs = [(row, col) for row, col in product(range(4), range(4)) if self.board[row][col]==0]
         # Available locations to place the piece
-        # 첫 수가 아닌 경우 evaluate_position 값에 따라
-        # -1을 return하면 eval_board 확인해서 가장 큰 곳에 둔다
         # 0~15의 값을 return하면 해당 index에 둔다
-        # 16을 return하면 가능한 위치 중 random 위치에 둔다 (이건 필요 없을것 같기도)
-        if(self.board.max()):
-            pos = self.evaluate_position(selected_piece)
-            if(pos != 16) :
-                while(1):
-                    row = pos // 4
-                    col = pos % 4
-                    if((row,col) in available_locs):
-                        # print("eval board : \n", self.eval_board)
-                        return (row, col)
-                    else:
-                        self.eval_board[row][col] -= 500
-                        pos = np.argmax(self.eval_board)
-                    
-            else :
-                return random.choice(available_locs)
-            
-        else: # 내가 첫수라면 무조건 1,1에 둔다
-            return (1,1)
+        best_pos = self.evaluate_position(selected_piece)
+        # print(best_pos)
+        pos = random.choice(best_pos)
+        # print(pos)
+        row = pos // 4
+        col = pos % 4
+        # print(f"({row},{col})")
+        return (row, col)
 
 
     # 완성도 체크 함수 : (-1,0,-1,-1),(-1,2,-1,-1) 이렇게 return하는게 좋을 듯
@@ -325,25 +311,25 @@ class P1():
                     for piece in self.available_pieces:
                         if(piece[symidx] == r_sym[symidx]):
                             piece_make_4s.append(piece)
-                    self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
+                    self.eval_board[r][c] += (len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 좋은 수임(상대가 나한테 줄게 없으니까)
                 for c_sym in self.col_sym:
                     piece_make_4s = []
                     for piece in self.available_pieces:
                         if(piece[symidx] == c_sym[symidx]):
                             piece_make_4s.append(piece)
-                    self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
+                    self.eval_board[r][c] += (len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 좋은 수임
                 for cr_sym in self.cross_sym:
                     piece_make_4s = []
                     for piece in self.available_pieces:
                         if(piece[symidx] == cr_sym[symidx]):
                             piece_make_4s.append(piece)
-                    self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
+                    self.eval_board[r][c] += (len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 좋은 수임
                 for sg_sym in self.subgrid_sym:
                     piece_make_4s = []
                     for piece in self.available_pieces:
                         if(piece[symidx] == sg_sym[symidx]):
                             piece_make_4s.append(piece)
-                    self.eval_board[r][c] -= (5*len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 안좋은 수임
+                    self.eval_board[r][c] += (len(piece_make_4s)) # 4로 만드는 말이 많이 남았을 수록 좋은 수임
                 
             else: # 말을 뒀는데 val의 최댓값이 똑같이 2임(2는 많이 만들수록 좋음)
                 self.eval_board[r][c] += 3 # 나쁘지 않은 수임
@@ -358,10 +344,8 @@ class P1():
             recalculated_max_val = max(self.calculate_evaluation_value(r, c, selected_piece)) # 2가 되는 부분이 있는지 확인
 
             if recalculated_max_val == 2:
-                
-                self.eval_board[r][c] += 3
+                self.eval_board[r][c] += 2
             else: # 말을 뒀는데 val의 최댓값이 똑같이 1임
-                
                 self.eval_board[r][c] += 1 #나쁘지 않은 수임
 
             self.board[r][c] = 0 # 원상복구
@@ -399,7 +383,7 @@ class P1():
             recalculated_max_val = max(self.calculate_evaluation_value(r, c, selected_piece))
 
             if recalculated_max_val == 4:
-                return (4*r + c)
+                return [4*r + c]
             self.board[r][c] = 0
 
         # val이 3인 곳이 존재할 때 (eval_board 업데이트)
@@ -516,6 +500,28 @@ class P1():
             self.update_eval_board_1(available_locs, selected_piece)
             
         # eval_board update후에는 가장 큰 값의 index를 return
-        
-        return np.argmax(self.eval_board) # 1차원 배열 형식으로 변경해 가장 큰 index 반환
-    
+        best_places = []
+
+        if(len(available_locs) > 7):
+            while(len(best_places) < 2):
+                max_place = np.argmax(self.eval_board)
+                row = max_place//4
+                col = max_place%4
+                if (row,col) in available_locs:
+                    best_places.append(max_place)
+                    self.eval_board[row][col] -= 500
+                else:
+                    self.eval_board[row][col] -= 500
+        else:
+            while(1):
+                if(len(best_places)==1): break
+                max_place = np.argmax(self.eval_board)
+                row = max_place//4
+                col = max_place%4
+                if (row,col) in available_locs:
+                    best_places.append(max_place)
+                    self.eval_board[row][col] -= 500
+                else:
+                    self.eval_board[row][col] -= 500
+        # print(best_places)
+        return best_places # 1차원 배열 형식으로 변경해 최상위 3개 index 반환
