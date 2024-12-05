@@ -9,6 +9,7 @@ from numpy.typing import NDArray
 PieceType = tuple[int, int, int, int]
 BoardType = NDArray[int]
 PositionType = tuple[int, int]
+TL = (5, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 15, 10, 5)
 
 # handlers = [logging.FileHandler(f'log_{int(time.time())}.logs')]
 # handlers = [logging.StreamHandler(), logging.FileHandler(f'log_{int(time.time())}.logs')]
@@ -115,7 +116,7 @@ class AI:
         logger.info('Building Monte Carlo tree.')
         started_at = time.time()
         cnt = 0
-        while time.time() - started_at < 15:
+        while time.time() - started_at < TL[self.turn - 1]:
             for _ in range(1000):
                 self.simulate()
             cnt += 1

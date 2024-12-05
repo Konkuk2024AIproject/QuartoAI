@@ -167,7 +167,7 @@ class AI:
         expected = score / (self.visits[state] + 1)
         parent_visit = self.visits[self.parent[state]]
         explored = np.sqrt(2 * (np.log(parent_visit + 1) + 1) / (self.visits[state] + 1))
-        return expected + explored
+        return expected + 2 * explored
 
     def check_win_condition(self, board: BoardType) -> list[list[bool]]:
         """

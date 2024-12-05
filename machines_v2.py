@@ -10,10 +10,10 @@ PieceType = tuple[int, int, int, int]
 BoardType = NDArray[int]
 PositionType = tuple[int, int]
 
-# handlers = [logging.FileHandler(f'log_{int(time.time())}.log')]
-# handlers = [logging.StreamHandler(), logging.FileHandler(f'log_{int(time.time())}.log')]
-# handlers = []
-handlers = [logging.StreamHandler()]
+# handlers = [logging.FileHandler(f'log_{int(time.time())}.logs')]
+# handlers = [logging.StreamHandler(), logging.FileHandler(f'log_{int(time.time())}.logs')]
+handlers = []
+# handlers = [logging.StreamHandler()]
 logging.basicConfig(level=logging.INFO, handlers=handlers)
 logger = logging.getLogger(__name__)
 
