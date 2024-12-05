@@ -5,18 +5,17 @@ import random
 import time
 from collections import defaultdict
 from numpy.typing import NDArray
-from itertools import product
-from machines_yeonwook import P1 as Submachine
-
+from machines_submachine import Submachine
 
 PieceType = tuple[int, int, int, int]
-BoardType = NDArray[np.int_]
+BoardType = NDArray[int]
 PositionType = tuple[int, int]
+TL = (5, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 20, 15, 10, 5)
 
-# handlers = [logging.FileHandler(f'log_{int(time.time())}.log')]
-# handlers = [logging.StreamHandler(), logging.FileHandler(f'log_{int(time.time())}.log')]
-# handlers = []
-handlers = [logging.StreamHandler()]
+# handlers = [logging.FileHandler(f'log_{int(time.time())}.logs')]
+# handlers = [logging.StreamHandler(), logging.FileHandler(f'log_{int(time.time())}.logs')]
+handlers = []
+# handlers = [logging.StreamHandler()]
 logging.basicConfig(level=logging.INFO, handlers=handlers)
 logger = logging.getLogger(__name__)
 
@@ -50,7 +49,7 @@ class AI:
         self.children = defaultdict(list)
         self.visits = defaultdict(int)
         self.wins = defaultdict(int)
-        self.submachine = Submachine(self.board + 1, self.available_pieces)
+        self.submachine = Submachine(board, available_pieces)
 
     def select_piece(self) -> PieceType:
         """
@@ -61,9 +60,9 @@ class AI:
         """
         logger.info(f'Selecting piece for turn {self.turn}')
 
-        if self.turn <= 4:
-            logger.info('First turn: selecting arbitrary piece')
-            return self.submachine.select_piece(self.board, self.available_pieces, self.turn)
+        if self.turn <= 5:
+            logger.info(f"Using Submachine to select piece for turn {self.turn}")
+            return self.submachine.select_piece()
 
         self.build()
 
@@ -90,19 +89,10 @@ class AI:
         return:
         - position: the position to place the piece (row, column)
         """
-        available_locs = [(row, col) for row, col in product(range(4), range(4)) if self.board[row][col]==0]
-        for loc in available_locs:
-            r, c = loc
-            self.submachine.board[r][c] = self.submachine.pieces.index(self.submachine.selected_piece) + 1
-            recalculated_max_val = max(self.calculate_evaluation_value(r, c, selected_piece))
+        if self.turn <= 5:
+            logger.info(f"Using Submachine to place piece for turn {self.turn}")
+            return self.submachine.place_piece(piece)
 
-            if recalculated_max_val == 4:
-                return [4*r + c]
-            self.board[r][c] = 0
-
-        if self.turn <= 3:
-            logger.info(f'Placing piece using Submachine for turn {self.turn}')
-            return self.submachine.place_piece(self.board, piece, self.turn)
         logger.info(f'Placing piece {piece} on the board on turn {self.turn}')
 
         self.selected_piece = piece
@@ -132,8 +122,8 @@ class AI:
         logger.info('Building Monte Carlo tree.')
         started_at = time.time()
         cnt = 0
-        while time.time() - started_at < 10:
-            for _ in range(800):
+        while time.time() - started_at < TL[self.turn - 1]:
+            for _ in range(1000):
                 self.simulate()
             cnt += 1
         logger.info(f'Finished building tree after {cnt} iterations.')
@@ -184,24 +174,51 @@ class AI:
         expected = score / (self.visits[state] + 1)
         parent_visit = self.visits[self.parent[state]]
         explored = np.sqrt(2 * (np.log(parent_visit + 1) + 1) / (self.visits[state] + 1))
-        return expected + 2 * explored
+        return expected + explored
+
+    def check_win_condition(self, board: BoardType) -> list[list[bool]]:
+        """
+        Check properties to win the game.
+
+        arguments:
+        - board: the board
+
+        return:
+        - win_condition: the win condition
+        """
+        cond = [[False, False] for _ in range(4)]
+
+        groups = [
+            *(board[i] for i in range(4)),
+            *(board[:, i] for i in range(4)),
+            np.diag(board),
+            np.diag(np.fliplr(board)),
+            *(board[i:i + 2, j:j + 2].ravel() for i in range(3) for j in range(3))
+        ]
+
+        v = [*map(self.get_group_win_condition, groups)]
+        for l in v:
+            for i, b in l:
+                cond[i][b] = True
+        return cond
 
     def simulate(self):
         """
-        Simulate a single game using an external machine for simulation.
+        Simulate a single game.
         """
         board = self.board.copy()
         pieces = self.available_pieces.copy()
         selected_piece = self.selected_piece
 
         history = []
+        logger.debug(f'Simulating game with selected piece {selected_piece}')
 
         parent_state = None
+        # run until unvisited node
         state = self.to_state(board, self.to_index(selected_piece) if selected_piece else None)
-
         while pieces:
+            logger.debug(f'Simulating state {state}')
             history.append(state)
-
             if self.status[state] == StateType.unvisited:
                 win = self.check_win(board)
                 self.status[state] = StateType.terminal if win else StateType.visited
@@ -212,39 +229,56 @@ class AI:
                 break
 
             me = self.is_me(pieces, selected_piece)
-
-            # Use external machine for simulation
+            best_child = max(
+                self.children[state], key=lambda x: self.evaluate(x, me)
+            )
+            *bd, pi = best_child
             if selected_piece:
-                self.submachine.board = board + 1
-                self.submachine.available_pieces = pieces
-                row, col = self.submachine.place_piece(selected_piece)
-                board[row, col] = self.to_index(selected_piece)
+                board = np.array(bd).reshape(4, 4)
                 pieces.remove(selected_piece)
                 selected_piece = None
             else:
-                self.submachine.board = board + 1
-                self.submachine.available_pieces = pieces
-                selected_piece = self.submachine.select_piece()
-
-            state = self.to_state(board, self.to_index(selected_piece) if selected_piece else None)
+                selected_piece = self.to_piece(pi)
+            state = best_child
             parent_state = state
 
         win = self.check_win(board)
+        # simulate random moves
         while pieces and not win:
+            logger.debug(f'Simulating random move with selected piece {selected_piece}')
             if selected_piece:
                 pieces.remove(selected_piece)
-                empty_positions = [(i, j) for i in range(4) for j in range(4) if board[i, j] == -1]
-                selected_position = random.choice(empty_positions)
-                board[selected_position] = self.to_index(selected_piece)
-                if self.check_win_by_move(board, selected_position):
-                    win = True
+                empty_positions = [(i, j) for i in range(4) for j in range(4) if board[i][j] == -1]
+                random.shuffle(empty_positions)
+
+                pi = self.to_index(selected_piece)
+                for r, c in empty_positions:
+                    board[r][c] = pi
+                    if self.check_win_by_move(board, (r, c)):
+                        win = True
+                        break
+                    board[r][c] = -1
+                else:
+                    r, c = random.choice(empty_positions)
+                    board[r][c] = pi
+                    if self.check_win_by_move(board, (r, c)):
+                        win = True
                 selected_piece = None
             else:
-                selected_piece = random.choice(pieces)
+                win_condition = self.check_win_condition(board)
+                for p in pieces:
+                    for i in range(4):
+                        if win_condition[i][p[i]]:
+                            break
+                    else:
+                        selected_piece = p
+                        break
+                else:
+                    selected_piece = random.choice(pieces)
 
         turn = 16 - len(pieces)
         result = .5 if not win else 1 if self.is_first == (turn % 2) else 0
-
+        logger.debug(f'Simulation result: {result}, ended at turn {turn}')
         for state in history:
             self.visits[state] += 1
             self.wins[state] += result
@@ -309,21 +343,21 @@ class AI:
         - win: whether the board is a winning state
         """
         row, col = move
-        if AI.check_group(board[row]) or AI.check_group(board[:, col]):
+        if AI.is_group_won(board[row]) or AI.is_group_won(board[:, col]):
             return True
-        if row == col and AI.check_group(np.diag(board)):
+        if row == col and AI.is_group_won(np.diag(board)):
             return True
-        if row == 3 - col and AI.check_group(np.diag(np.fliplr(board))):
+        if row == 3 - col and AI.is_group_won(np.diag(np.fliplr(board))):
             return True
 
         # check for surrounding 2x2 squares
-        if row > 0 and col > 0 and AI.check_group(board[row-1:row+1, col-1:col+1].ravel()):
+        if row > 0 and col > 0 and AI.is_group_won(board[row - 1:row + 1, col - 1:col + 1].ravel()):
             return True
-        if row > 0 and col < 3 and AI.check_group(board[row-1:row+1, col:col+2].ravel()):
+        if row > 0 and col < 3 and AI.is_group_won(board[row - 1:row + 1, col:col + 2].ravel()):
             return True
-        if row < 3 and col > 0 and AI.check_group(board[row:row+2, col-1:col+1].ravel()):
+        if row < 3 and col > 0 and AI.is_group_won(board[row:row + 2, col - 1:col + 1].ravel()):
             return True
-        if row < 3 and col < 3 and AI.check_group(board[row:row+2, col:col+2].ravel()):
+        if row < 3 and col < 3 and AI.is_group_won(board[row:row + 2, col:col + 2].ravel()):
             return True
 
     @staticmethod
@@ -338,18 +372,37 @@ class AI:
         - win: whether the board is a winning state
         """
         for i in range(4):
-            if AI.check_group(board[i]) or AI.check_group(board[:, i]):
+            if AI.is_group_won(board[i]) or AI.is_group_won(board[:, i]):
                 return True
-        if AI.check_group(np.diag(board)) or AI.check_group(np.diag(np.fliplr(board))):
+        if AI.is_group_won(np.diag(board)) or AI.is_group_won(np.diag(np.fliplr(board))):
             return True
         for i in range(3):
             for j in range(3):
-                if AI.check_group(board[i:i+2, j:j+2].ravel()):
+                if AI.is_group_won(board[i:i + 2, j:j + 2].ravel()):
                     return True
         return False
 
     @staticmethod
-    def check_group(group: NDArray[np.int_]) -> bool:
+    def get_group_win_condition(group: NDArray[int]) -> list[tuple[int, bool]]:
+        """
+        Get the win condition of a group.
+
+        arguments:
+        - group: the group
+
+        return:
+        - win_condition: the win condition
+        """
+        g = [x for x in group if x != -1]
+        res = []
+        for i in range(4):
+            v = 1 << i
+            if len(set(x & v for x in g)) == 1:
+                res.append((i, bool(g[0] & v)))
+        return res
+
+    @staticmethod
+    def is_group_won(group: NDArray[int]) -> bool:
         """
         Check if a group is a winning group.
 
@@ -379,4 +432,3 @@ def get_instance(is_first: bool):
 
 P1 = get_instance(True)
 P2 = get_instance(False)
-
