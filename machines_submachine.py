@@ -11,6 +11,7 @@ class Submachine():
         self.eval_board = np.zeros((4, 4), dtype=int)
         self.eval_piece = np.zeros(len(self.pieces))
     
+    
     def select_piece(self):
         if(self.board.max()):
             self.evaluate_piece()
@@ -34,7 +35,7 @@ class Submachine():
                 while(1):
                     row = pos // 4
                     col = pos % 4
-                    if((row,col) in available_locs):
+                    if((row,col) in available_locs): 
                         return (row, col)
                     else:
                         self.eval_board[row][col] -= 500
@@ -43,6 +44,7 @@ class Submachine():
                 return random.choice(available_locs)
         else:
             return (1,1)
+
 
     def check_possibility(self, line):
         line = [grid for grid in line if grid != 0]
@@ -62,6 +64,7 @@ class Submachine():
                     sym.append(u_val[0])
                     quantity.append(count[0])
         return sym, quantity 
+
 
     def member_reset(self):
         self.row_sym = []
@@ -122,119 +125,44 @@ class Submachine():
                 else:
                     self.subgrid_sym.append([-1,-1,-1,-1])
                     self.subgrid_eval.append([0,0,0,0])
-        
-    
+
     
     def evaluate_piece(self):
         self.check_possibilities()  
         max_vals = [max([max(reval) for reval in self.row_eval]), max([max(ceval) for ceval in self.col_eval]), max([max(creval) for creval in self.cross_eval]), max([max(seval) for seval in self.subgrid_eval])]
-
-        if(3 in np.ravel(np.array(self.row_eval))):
-            for sindex, row in enumerate(self.row_sym):
-                for idx, sym in enumerate(row) :
-                    if(sym != -1 and self.row_eval[sindex][idx] == 3):
-                        valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
-                        valid_piece_set = set(valid_piece)
-                        result_array = np.array([80 if piece in valid_piece_set else 0 for piece in self.pieces])
-                        self.eval_piece -= np.array(result_array)
+        win_conditions_eval = [self.row_eval, self.col_eval, self.cross_eval, self.subgrid_eval]
+        win_conditions_sym = [self.row_sym, self.col_sym, self.cross_sym, self.subgrid_sym]
         
-        if(3 in np.ravel(np.array(self.col_eval))):
-            for sindex, col in enumerate(self.col_sym):
-                for idx, sym in enumerate(col) :
-                    if(sym != -1 and self.col_eval[sindex][idx] == 3):
-                        valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
-                        valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([80 if piece in valid_piece_set else 0 for piece in self.pieces])
-                        self.eval_piece -= np.array(result_array)
-        
-        if(3 in np.ravel(np.array(self.cross_eval))):
-            for sindex, cross in enumerate(self.cross_sym):
-                for idx, sym in enumerate(cross) :
-                    if(sym != -1 and self.cross_eval[sindex][idx] == 3):
-                        valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
-                        valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([80 if piece in valid_piece_set else 0 for piece in self.pieces])
-                        self.eval_piece -= np.array(result_array)
-
-        if(3 in np.ravel(np.array(self.subgrid_eval))):
-            for sindex, subgrid in enumerate(self.subgrid_sym):
-                for idx, sym in enumerate(subgrid):
-                    if(sym != -1 and self.subgrid_eval[sindex][idx] == 3):
-                        valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
-                        valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([80 if piece in valid_piece_set else 0 for piece in self.pieces])
-                        self.eval_piece -= np.array(result_array)
-        
-        if(2 in np.ravel(np.array(self.row_eval))):
-            for sindex, row in enumerate(self.row_sym):
-                for idx, sym in enumerate(row) :
-                    if(sym != -1 and self.row_eval[sindex][idx] == 2):
-                        valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
-                        valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
-                        weight = np.sum(result_array)
-                        self.eval_piece += (weight*np.array(result_array))
-
-        if(2 in np.ravel(np.array(self.col_eval))):
-            for sindex, col in enumerate(self.col_sym):
-                for idx, sym in enumerate(col) :
-                    if(sym != -1 and self.col_eval[sindex][idx] == 2):
-                        valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
-                        valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
-                        weight = np.sum(result_array)
-                        self.eval_piece += (weight*np.array(result_array))
-
-        if(2 in np.ravel(np.array(self.cross_eval))):
-            for sindex, cross in enumerate(self.cross_sym):
-                for idx, sym in enumerate(cross) :
-                    if(sym != -1 and self.cross_eval[sindex][idx] == 2):
-                        valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
-                        valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
-                        weight = np.sum(result_array)
-                        self.eval_piece += (weight*np.array(result_array))
-
-        if(2 in np.ravel(np.array(self.subgrid_eval))):
-            for sindex, subgrid in enumerate(self.subgrid_sym):
-                for idx, sym in enumerate(subgrid) :
-                    if(sym != -1 and self.subgrid_eval[sindex][idx] == 2):
-                        valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
-                        valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
-
-                        weight = np.sum(result_array)
-                        self.eval_piece += (weight*np.array(result_array))
+        for c_count in range(4):
+            if(3 in np.ravel(np.array(win_conditions_eval[c_count]))):
+                for sindex, cond in enumerate(win_conditions_sym[c_count]):
+                    for idx, sym in enumerate(cond) :
+                        if(sym != -1 and win_conditions_eval[c_count][sindex][idx] == 3):
+                            valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
+                            valid_piece_set = set(valid_piece) # valid_piece를 set으로 변환
+                            result_array = np.array([80 if piece in valid_piece_set else 0 for piece in self.pieces])
+                            self.eval_piece -= np.array(result_array)
+                
+            if(2 in np.ravel(np.array(win_conditions_eval[c_count]))):
+                for sindex, cond in enumerate(win_conditions_sym[c_count]):
+                    for idx, sym in enumerate(cond) :
+                        if(sym != -1 and win_conditions_eval[c_count][sindex][idx] == 2):
+                            valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
+                            valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
+                            result_array = np.array([1 if piece in valid_piece_set else 0 for piece in self.pieces])
+                            weight = np.sum(result_array)
+                            self.eval_piece += (weight*np.array(result_array))
 
         if(1 in max_vals):
-            for sindex, row in enumerate(self.row_sym):
-                for idx, sym in enumerate(row):
-                    if(sym != -1 and self.row_eval[sindex][idx] == 1):
-                        valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
-                        valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([2 if piece in valid_piece_set else 0 for piece in self.pieces])
-                        self.eval_piece += np.array(result_array)
-            for sindex, col in enumerate(self.col_sym):
-                for idx, sym in enumerate(col):
-                    if(sym != -1 and self.col_eval[sindex][idx] == 1):
-                        valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
-                        valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([2 if piece in valid_piece_set else 0 for piece in self.pieces])
-                        self.eval_piece += np.array(result_array)
-            for sindex, cross in enumerate(self.cross_sym):
-                for idx, sym in enumerate(cross):
-                    if(sym != -1 and self.cross_eval[sindex][idx] == 1):
-                        valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
-                        valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([2 if piece in valid_piece_set else 0 for piece in self.pieces])
-                        self.eval_piece += np.array(result_array)
-            for sindex, subgrid in enumerate(self.subgrid_sym):
-                for idx, sym in enumerate(subgrid):
-                    if(sym != -1 and self.subgrid_eval[sindex][idx] == 1):
-                        valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
-                        valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
-                        result_array = np.array([2 if piece in valid_piece_set else 0 for piece in self.pieces])
-                        self.eval_piece += np.array(result_array)
+            for c_count in range(4):
+                for sindex, cond in enumerate(win_conditions_sym[c_count]):
+                    for idx, sym in enumerate(cond):
+                        if(sym != -1 and win_conditions_eval[c_count][sindex][idx] == 1):
+                            valid_piece = [piece for piece in self.available_pieces if piece[idx] == sym]
+                            valid_piece_set = set(valid_piece)  # valid_piece를 set으로 변환
+                            result_array = np.array([2 if piece in valid_piece_set else 0 for piece in self.pieces])
+                            self.eval_piece += np.array(result_array)
+
 
     def calculate_evaluation_value(self, r, c, selected_piece):
         pos_list = []
@@ -253,8 +181,10 @@ class Submachine():
                 subgrid = [self.board[sg_r][sg_c], self.board[sg_r][sg_c+1], self.board[sg_r+1][sg_c], self.board[sg_r+1][sg_c+1]]
                 _, count = self.check_possibility(subgrid)
                 pos_list.append(max(count))
+        self.board[r][c] = 0
         return pos_list
     
+
     def check_position(self, win_conditions_eval, same_value):
         max_positions = []
         for cond_idx, win_condition in enumerate(win_conditions_eval):
@@ -264,7 +194,6 @@ class Submachine():
 
     def update_eval_board_2(self, symidx, locs, selected_piece):
         for (r,c) in locs:
-            self.board[r][c] = self.pieces.index(selected_piece) + 1
             recalculated_max_val = max(self.calculate_evaluation_value(r, c, selected_piece)) # 3이 되는 부분이 있는지 확인
             if recalculated_max_val == 3:
                 for r_sym in self.row_sym:
@@ -293,18 +222,16 @@ class Submachine():
                             self.eval_board[r][c] -= (len(piece_make_4s))
             else: 
                 self.eval_board[r][c] += 3 
-            self.board[r][c] = 0 
+
 
     def update_eval_board_1(self, locs, selected_piece):
         for (r,c) in locs:
-            self.board[r][c] = self.pieces.index(selected_piece) + 1
             recalculated_max_val = max(self.calculate_evaluation_value(r, c, selected_piece))
             if recalculated_max_val == 2:
                 self.eval_board[r][c] += 1
             else:
-                self.eval_board[r][c] += 1
+                self.eval_board[r][c] += 2
 
-            self.board[r][c] = 0 # 원상복구
 
     def evaluate_position(self, selected_piece):
         self.check_possibilities()
@@ -321,13 +248,10 @@ class Submachine():
                 self.eval_board[r][c] += 1
         for loc in available_locs:
             r, c = loc
-            self.board[r][c] = self.pieces.index(selected_piece) + 1
             recalculated_max_val = max(self.calculate_evaluation_value(r, c, selected_piece))
 
             if recalculated_max_val == 4:
                 return (4*r + c)
-            else : 
-                self.board[r][c] = 0
 
         if(3 in np.ravel([item for sublist in win_conditions_eval for item in sublist])):
             max_positions = self.check_position(win_conditions_eval, 3) # 3인 곳을 찾아줌
@@ -351,6 +275,7 @@ class Submachine():
                                                 possible_pieces = [piece for piece in self.available_pieces if piece[new_symidx] != sym_to_check]
                                                 self.eval_board[r][c] += len(possible_pieces)
                             self.board[r][c] = 0
+                            
         if(2 in np.ravel([item for sublist in win_conditions_eval for item in sublist])):
             max_positions = self.check_position(win_conditions_eval, 2)
             
