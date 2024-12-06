@@ -3,11 +3,34 @@ import numpy as np
 import time
 from multiprocessing import Pool, cpu_count
 
-from machines_yeonwook import P1
-from machines_v2 import P2
+# from machines_yeonwook import P1
+# # 7일때=> P1 win: 0, P2 win: 50, Draw: 0
+
+# from machines_v3 import P1
+# # 5일떄=> P1 win: 8, P2 win: 28, Draw: 14
+
+from machines_refactor import P2
+
+from machines_refactor_7 import P1
+# P1 win: 10, P2 win: 18, Draw: 22
+
+# from machines_v2_deep_filter_optimized import P1
+# # 7일때=> P1 win: 12, P2 win: 13, Draw: 25
+# # 6일때=> P1 win: 16, P2 win: 13, Draw: 21
+# # 5일때=> P1 win: 11, P2 win: 13, Draw: 26
+
+# from machines_mcts import P1
+# # 7일때=> P1 win: 2, P2 win: 39, Draw: 9
+# # 6일때=> P1 win: 4, P2 win: 37, Draw: 9
+# # 5일때=> P1 win: 4, P2 win: 39, Draw: 7
+
+# from minmax_jih import P1
+# # 7일때=> P1 win: 13, P2 win: 37, Draw: 0
+# # 6일때=> P1 win: 10, P2 win: 39, Draw: 1
+# # 5일때=> P1 win: 1, P2 win: 47, Draw: 2
 
 TF = (0, 1)
-ITERATIONS = 16
+ITERATIONS = 50
 
 
 def check_group(group):
