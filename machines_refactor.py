@@ -60,7 +60,7 @@ class AI:
         """
         logger.info(f'Selecting piece for turn {self.turn}')
 
-        if self.turn <= 5:
+        if self.turn <= 4:
             logger.info(f"Using Submachine to select piece for turn {self.turn}")
             return self.submachine.select_piece()
 
@@ -89,7 +89,7 @@ class AI:
         return:
         - position: the position to place the piece (row, column)
         """
-        if self.turn <= 5:
+        if self.turn <= 4:
             logger.info(f"Using Submachine to place piece for turn {self.turn}")
             return self.submachine.place_piece(piece)
 
